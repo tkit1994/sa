@@ -5,11 +5,10 @@
 #
 #-------------------------------------------------
 
-message("")
-message("--------------SA Serve about lib--------------------------")
+message("--------------signAServe SA服务封装--------------------------")
 message(Qt version: $$[QT_VERSION])
 message(Qt is installed in $$[QT_INSTALL_PREFIX])
-
+win32-msvc*:QMAKE_CXXFLAGS += /wd"4819" #忽略warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
 QT += core
 QT += network
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
@@ -21,40 +20,41 @@ CONFIG(debug, debug|release){
 }else {
     DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_release/libs
 }
-DEFINES += SASERVE_MAKE \#定义此宏将构建库
-           SA_SERVE_DEBUG_PRINT #debug时打印
-CONFIG += c++11
+DEFINES += SASERVE_MAKE \
+           SA_SERVE_DEBUG_PRINT
 
 HEADERS += \
     /../global/SAGlobals.h \
     SAServeGlobal.h \
     SAAbstractServe.h \
     3rdParty/CRC.h \
+    SASession.h \
     SATcpSocket.h \
     SATcpServe.h \
-    SATcpAssignServe.h \
     SAServeShareMemory.h \
     SATcpClient.h \
     SAServerDefine.h \
     SATcpDataProcessClient.h \
-    SATcpSection.h \
-    SAServeHandleFun.h
+    SAServeHandleFun.h \
+    SATcpThreadSocket.h \
+    ../global/SAGlobals.h
 
 
 
 SOURCES += \
     SAAbstractServe.cpp \
+    SASession.cpp \
     SATcpSocket.cpp \
     SATcpServe.cpp \
-    SATcpAssignServe.cpp \
     SAServeShareMemory.cpp \
     SATcpClient.cpp \
     SATcpDataProcessClient.cpp \
-    SATcpSection.cpp \
-    SAServeHandleFun.cpp
+    SAServeHandleFun.cpp \
+    SATcpThreadSocket.cpp
 
+#sa lib
+include($$PWD/../signALib/signALib.pri)
 #sa protocol support
 include($$PWD/../signAProtocol/signAProtocol.pri)
-include($$PWD/../czy/czy.pri)
 
 OTHER_FILES += readme.md

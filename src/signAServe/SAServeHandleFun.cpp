@@ -1,15 +1,30 @@
 #include "SAServeHandleFun.h"
 #include "SAXMLProtocolParser.h"
 #include "SAServerDefine.h"
+#include "SAXMLTagDefined.h"
 #include <QCryptographicHash>
 #include <QMap>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonValue>
+#include <QJsonObject>
+#include <QDataStream>
+#include <QXmlStreamWriter>
+#include <QXmlStreamReader>
+#include <memory>
+#include "SAVariantCaster.h"
 #include "SACRC.h"
+#include "SAPoint.h"
 
-
-static QMap<int,SA::FunHandle> fun_handle_map = QMap<int,SA::FunHandle>();
+static QMap<SAPoint,SA::FunHandle> fun_handle_map = QMap<SAPoint,SA::FunHandle>();
 QMutex fun_handle_mutex;
+//把variant写入item里
+void write_variant_property_to_xml(QXmlStreamWriter& xml,const QMap<QString, QVariant>& props);
+void write_variant_item_to_xml(QXmlStreamWriter& xml,const QMap<int, QVariant>& props);
+void write_variant_to_xml_item(QXmlStreamWriter& xml,const QString& name,const QVariant& value);
+void write_saitem_to_xml(QXmlStreamWriter& xml,const SAItem* item);
 
 bool SA::ensure_write(const char *data, qint64 len,SATcpSocket* socket,short maxtry)
 {
@@ -81,10 +96,10 @@ bool SA::write_xml_protocol(SATcpSocket *socket, const SAXMLProtocolParser *xml,
  * @param funid 函数id
  * @param fun 函数指针
  */
-void SA::register_serve_funciton_handle(int funid, SA::FunHandle fun)
+void SA::register_serve_funciton_handle(int classid, int funid, SA::FunHandle fun)
 {
     QMutexLocker locker(&fun_handle_mutex);
-    fun_handle_map[funid] = fun;
+    fun_handle_map[SAPoint(classid,funid)] = fun;
 }
 
 
@@ -93,10 +108,10 @@ void SA::register_serve_funciton_handle(int funid, SA::FunHandle fun)
  * @param funid 功能id
  * @return 对应处理方法指针，如果没有返回nullptr
  */
-SA::FunHandle SA::get_serve_funciton_handle(int funid)
+SA::FunHandle SA::get_serve_funciton_handle(int classid,int funid)
 {
     QMutexLocker locker(&fun_handle_mutex);
-    return fun_handle_map.value(funid,nullptr);
+    return fun_handle_map.value(SAPoint(classid,funid),nullptr);
 }
 
 /**
@@ -104,10 +119,7 @@ SA::FunHandle SA::get_serve_funciton_handle(int funid)
  */
 void SA::init_serve_funciotn_handle()
 {
-    QMutexLocker locker(&fun_handle_mutex);
-    fun_handle_map[SA::ProtocolFunReqToken] = &deal_xml_request_token;
-    fun_handle_map[SA::ProtocolFunReplyToken] = &deal_xml_reply_token;
-    fun_handle_map[SA::ProtocolFunReqHeartbreat] = &deal_request_heartbreat;
+
 }
 
 /**
@@ -145,58 +157,12 @@ bool SA::request_token_xml(int pid, const QString &appid, SATcpSocket *socket, i
     return write_xml_protocol(socket,&data,SA::ProtocolFunReqToken,sequenceID,extendValue);
 }
 
-/**
- * @brief 处理token的请求,此函数主要服务端使用
- * @param header
- * @param data
- * @param socket
- * @param res 无结果返回
- * @return 成功执行后会回复socket的token
- */
-bool SA::deal_xml_request_token(const SAProtocolHeader &header, const QByteArray &data, SATcpSocket *socket, QVariantHash *res)
-{
-    FUNCTION_RUN_PRINT();
-    Q_UNUSED(res);
-    SAXMLProtocolParser xml;
-    if(!xml.fromByteArray(data))
-    {
-        return false;
-    }
-    int pid = xml.getValue(SA_SERVER_VALUE_GROUP_SA_DEFAULT,"pid",0).toInt();
-    QString appid = xml.getValue(SA_SERVER_VALUE_GROUP_SA_DEFAULT,"appid","").toString();
-    QString token = make_token(pid,appid);
-
-    //回复
-    SAXMLProtocolParser reply;
-    reply.setClassID(SA::ProtocolTypeXml);
-    reply.setFunctionID(SA::ProtocolFunReplyToken);
-    reply.setValueInDefaultGroup("token",token);
-    return write_xml_protocol(socket,&reply,SA::ProtocolFunReplyToken,header.sequenceID,header.extendValue);
-}
 
 
 
-/**
- * @brief 处理token的返回
- * @param header
- * @param data
- * @param socket
- * @param res
- * @return
- * @note 函数不对指针的是否为null做检查，请确保指针的有效性
- */
-bool SA::deal_xml_reply_token(const SAProtocolHeader &header, const QByteArray &data, SATcpSocket *socket, QVariantHash *res)
-{
-    FUNCTION_RUN_PRINT();
-    SAXMLProtocolParser xml;
-    if(!xml.fromByteArray(data))
-    {
-        return false;
-    }
-    QString token = xml.getValueInDefaultGroup("token").toString();
-    res->insert("token",token);
-    return true;
-}
+
+
+
 /**
  * @brief 请求心跳
  * @param socket
@@ -214,27 +180,193 @@ bool SA::request_heartbreat(SATcpSocket *socket)
     return write(header,QByteArray(),socket);
 }
 
+
+
+
+
+
+
 /**
- * @brief 处理心跳的请求
- * @param header
- * @param data
- * @param socket
- * @param res
+ * @brief 把xml转换为tree
+ * @param xml
+ * @param tree
  * @return
  */
-bool SA::deal_request_heartbreat(const SAProtocolHeader &header, const QByteArray &data, SATcpSocket *socket, QVariantHash *res)
+bool SA::cast_protocol_to_satree(const SAXMLProtocolParser *xml, SATree *tree)
 {
-    FUNCTION_RUN_PRINT();
-    Q_UNUSED(data);
-    Q_UNUSED(res);
-    SAProtocolHeader replyheader;
-    replyheader.init();
-    replyheader.sequenceID = header.sequenceID;
-    replyheader.dataSize = 0;
-    replyheader.protocolTypeID = SA::ProtocolTypeHeartbreat;
-    replyheader.protocolFunID = SA::ProtocolFunReplyHeartbreat;
-    replyheader.extendValue = 0; // 心跳返回给客户端，此时值为0
-    return write(replyheader,QByteArray(),socket);
+    tree->setProperty("classid",xml->getClassID());
+    tree->setProperty("funid",xml->getFunctionID());
+    QStringList dfk = xml->getKeyNames();//获取默认分组的item
+    for(const QString& k : dfk)
+    {
+        QVariant v = xml->getDefaultGroupValue(k);
+        if (v.isValid())
+        {
+            std::unique_ptr<SAItem> i(new SAItem());
+            i->setName(k);
+            i->setProperty(SAItem::RoleValue,v);
+            tree->appendItem(i.release());
+        }
+    }
+    QStringList gs = xml->getGroupNames();
+    for (const QString& g : gs)
+    {
+        SAItem* gi = new SAItem(g);
+        QStringList dfk = xml->getKeyNames(g);
+        for(const QString& k : dfk)
+        {
+            QVariant v = xml->getValue(g,k);
+            if (v.isValid())
+            {
+                std::unique_ptr<SAItem> i(new SAItem());
+                i->setName(k);
+                i->setProperty(SAItem::RoleValue,v);
+                tree->appendItem(i.release());
+            }
+        }
+        tree->appendItem(gi);
+    }
+    return true;
 }
 
+/**
+ * @brief SA::cast_satree_to_xml
+ * @param tree
+ * @return
+ */
+QString SA::cast_satree_to_xml(const SATree *tree)
+{
+    QString str;
+    QXmlStreamWriter xml(&str);
+    xml.setAutoFormatting(true);
+    //<?xml version='1.0' encoding='UTF-8'?>
+    //<sa funid="-1" classid="-1" type="xml">
+    xml.writeStartDocument();
+    xml.writeStartElement("sa");
+    xml.writeAttribute("funid","-2");
+    xml.writeAttribute("classid","-2");
+    xml.writeAttribute("type","xml");
+    // <prop>
+    //   <item name="firstStart" type="bool">0</item>
+    // </prop>
+    write_variant_property_to_xml(xml,tree->getPropertys());
+    //values
+    QList<SAItem*> items = tree->getItems();
+    xml.writeStartElement(SA_XML_TAG_VALUES);
+    for(const SAItem* i : items)
+    {
+        write_saitem_to_xml(xml,i);
+    }
+    xml.writeEndElement(); // values
 
+    xml.writeEndElement(); // sa
+    xml.writeEndDocument();
+    return str;
+}
+
+/**
+ * @brief 把属性写入属性栏中
+ * @param xml
+ * @param props
+ */
+void write_variant_property_to_xml(QXmlStreamWriter& xml,const QMap<QString, QVariant>& props)
+{
+    xml.writeStartElement(SA_XML_TAG_PROPERTY);
+    for(auto i = props.begin();i!=props.end();++i)
+    {
+        write_variant_to_xml_item(xml,i.key(),i.value());
+    }
+    xml.writeEndElement(); // prop
+}
+/**
+ * @brief 批量写入item
+ * @param xml
+ * @param props
+ */
+void write_variant_item_to_xml(QXmlStreamWriter& xml,const QMap<int, QVariant>& props)
+{
+    for(auto i = props.begin();i!=props.end();++i)
+    {
+        write_variant_to_xml_item(xml,QString::number(i.key()),i.value());
+    }
+}
+
+void write_variant_to_xml_item(QXmlStreamWriter& xml,const QString& name,const QVariant& value)
+{
+    xml.writeStartElement(SA_XML_TAG_ITEM);
+    QString vartype = value.typeName();
+    if (!name.isNull())
+    {
+        xml.writeAttribute(SA_XML_ATT_NAME,name);
+    }
+    xml.writeAttribute(SA_XML_ATT_TYPE,vartype);
+    if(0 == QString::compare(vartype,SA_XML_VAR_ARR_LIST,Qt::CaseInsensitive))
+    {
+        QList<QVariant> l = value.toList();
+        for (auto i = l.begin();i!=l.end();++i)
+        {
+            write_variant_to_xml_item(xml,QString(),*i);
+        }
+    }
+    else if (0 == QString::compare(vartype,SA_XML_VAR_ARR_MAP,Qt::CaseInsensitive))
+    {
+        QMap<QString, QVariant> l = value.toMap();
+        for (auto i = l.begin();i!=l.end();++i)
+        {
+            write_variant_to_xml_item(xml,i.key(),i.value());
+        }
+    }
+    else if (0 == QString::compare(vartype,SA_XML_VAR_ARR_HASH,Qt::CaseInsensitive))
+    {
+        QHash<QString, QVariant> l = value.toHash();
+        for (auto i = l.begin();i!=l.end();++i)
+        {
+            write_variant_to_xml_item(xml,i.key(),i.value());
+        }
+    }
+    else if (0 == QString::compare(vartype,SA_XML_VAR_ARR_STRLIST,Qt::CaseInsensitive))
+    {
+        QStringList l = value.toStringList();
+        for (auto i = l.begin();i!=l.end();++i)
+        {
+            write_variant_to_xml_item(xml,QString(),*i);
+        }
+    }
+    else
+    {
+        xml.writeCharacters(SAVariantCaster::variantToString(value));
+    }
+    xml.writeEndElement();
+}
+
+/**
+ * @brief 把saitem写入到xml中，saitem作为saprotocol的group对象
+ * @param xml QXmlStreamWriter 此时的xml必须是在一个group或者再values下
+ * @param item
+ */
+void write_saitem_to_xml(QXmlStreamWriter& xml,const SAItem* item)
+{
+    xml.writeStartElement(SA_XML_TAG_GROUP);
+    xml.writeAttribute(SA_XML_ATT_NAME,item->getName());
+    xml.writeAttribute(SA_XML_ATT_ID,QString::number(item->getID()));
+    QIcon icon = item->getIcon();
+    if(!icon.isNull())
+    {
+        QByteArray byte;
+        QDataStream st(&byte,QIODevice::ReadWrite);
+        st << icon;
+        xml.writeAttribute(SA_XML_ATT_ICON,byte.toBase64());
+    }
+    //写入property xml protocol的item标签写入
+    if(item->getPropertyCount() > 0)
+    {
+        write_variant_item_to_xml(xml,item->getPropertys());
+    }
+    //写入子item
+    QList<SAItem*> childs = item->getChildItems();
+    for(const SAItem* i : childs)
+    {
+        write_saitem_to_xml(xml,i);
+    }
+    xml.writeEndElement();
+}

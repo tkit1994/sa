@@ -17,9 +17,10 @@
 #include "SAChart.h"
 #include "qwt_symbol.h"
 #include <QMdiSubWindow>
+#include "SAMdiSubWindow.h"
 #include "SAGUIGlobalConfig.h"
 #include "ui_opt.h"
-#include "czyAlgorithm.h"
+#include "SAAlgorithm.h"
 #include "SARandColorMaker.h"
 #include <QApplication>
 #define TR(str)\
@@ -68,7 +69,7 @@ void sigmaDetect(SAUIInterface* ui)
             QString info;
             QString title = item->title().text();
             QVector<int> indexs;
-            saFun::sigmaDenoising(xs,ys,sigma,indexs);
+            saFun::sigmaDenoising(ys,sigma,indexs);
             info = QString("sigma(\"%1\") out range datas count:%2").arg(title).arg(indexs.size());
             infos.append(info);
             if(0 == indexs.size())
@@ -78,8 +79,8 @@ void sigmaDetect(SAUIInterface* ui)
             if(isMark)
             {
                 QVector<double> oxs,oys;
-                czy::copy_inner_indexs(xs.begin(),indexs.begin(),indexs.end(),std::back_inserter(oxs));
-                czy::copy_inner_indexs(ys.begin(),indexs.begin(),indexs.end(),std::back_inserter(oys));
+                SA::copy_inner_indexs(xs.begin(),indexs.begin(),indexs.end(),std::back_inserter(oxs));
+                SA::copy_inner_indexs(ys.begin(),indexs.begin(),indexs.end(),std::back_inserter(oys));
                 QwtPlotCurve* curs = new QwtPlotCurve(QString("%1_outSigmaMarker").arg(title));
                 curs->setSamples(oxs,oys);
                 SAChart::setCurvePenStyle(curs,Qt::NoPen);
@@ -103,10 +104,10 @@ void sigmaDetect(SAUIInterface* ui)
                 {
                     allIndex.append(i);
                 }
-                czy::copy_out_of_indexs(allIndex.begin(),allIndex.end(),indexs.begin(),indexs.end(),std::back_inserter(innerIndex));
+                SA::copy_out_of_indexs(allIndex.begin(),allIndex.end(),indexs.begin(),indexs.end(),std::back_inserter(innerIndex));
                 QVector<double> oxs,oys;
-                czy::copy_inner_indexs(xs.begin(),innerIndex.begin(),innerIndex.end(),std::back_inserter(oxs));
-                czy::copy_inner_indexs(ys.begin(),innerIndex.begin(),innerIndex.end(),std::back_inserter(oys));
+                SA::copy_inner_indexs(xs.begin(),innerIndex.begin(),innerIndex.end(),std::back_inserter(oxs));
+                SA::copy_inner_indexs(ys.begin(),innerIndex.begin(),innerIndex.end(),std::back_inserter(oys));
                 QVector<QPointF> oxys;
                 saFun::makeVectorPointF(oxs,oys,oxys);;
 
@@ -308,7 +309,7 @@ void sigmaDetectInValue(SAUIInterface* ui)
         return;
     }
     QList<SAFigureWindow*> figList;//用于保存当前主界面所有的绘图窗口
-    SAPropertySetDialog dlg(ui->getMainWindowPtr(),static_cast<SAPropertySetDialog::BrowserType>(SAGUIGlobalConfig::getDefaultPropertySetDialogType()));
+    SAPropertySetDialog dlg(ui->getMainWindowPtr(),SAPropertySetDialog::GroupBoxType);
     const QString idSigma = "sigma";
     const QString idPlotInNewFigure = "isPlotInNewFigure";
     const QString idPlotOriginDataAndOutRangDataInNewFigure = "isPlotOriginDataAndOutRangDataInNewFigure";
@@ -399,7 +400,7 @@ void sigmaDetectInValue(SAUIInterface* ui)
     //========================
     if(dlg.getDataByID<bool>(idPlotInNewFigure))
     {
-        QMdiSubWindow* sub = ui->createFigureWindow();
+        SAMdiSubWindow* sub = ui->createFigureWindow();
         SAFigureWindow* fig = ui->getFigureWidgetFromMdiSubWindow(sub);
         SAChart2D* chart = fig->current2DPlot();
         if(nullptr == chart)
@@ -505,7 +506,7 @@ void sigmaDetectInValue(SAUIInterface* ui)
 ///
 bool getPointSmoothPorperty(int &m, int &n,SAUIInterface* ui)
 {
-    SAPropertySetDialog dlg(ui->getMainWindowPtr(),static_cast<SAPropertySetDialog::BrowserType>(SAGUIGlobalConfig::getDefaultPropertySetDialogType()));
+    SAPropertySetDialog dlg(ui->getMainWindowPtr(),SAPropertySetDialog::GroupBoxType);
     dlg.appendGroup(TR("property set"));
     dlg.appendEnumProperty("m",TR("points")
                            ,{"3","5","7"}
@@ -552,7 +553,7 @@ void FunDataPreprocessing::pointSmoothInValue()
     const QString idPoint = "points";
     const QString idPower = "power";
     const QString idIsPlot = "isPlot";
-    SAPropertySetDialog dlg(saUI->getMainWindowPtr(),static_cast<SAPropertySetDialog::BrowserType>(SAGUIGlobalConfig::getDefaultPropertySetDialogType()));
+    SAPropertySetDialog dlg(saUI->getMainWindowPtr(),SAPropertySetDialog::GroupBoxType);
     dlg.appendGroup(TR("property set"));
     dlg.appendEnumProperty(idPoint,TR("points")
                            ,{"3","5","7"}
@@ -596,7 +597,7 @@ void FunDataPreprocessing::pointSmoothInValue()
     saValueManager->addData(res);
     if(dlg.getDataByID<bool>(idIsPlot))
     {
-        QMdiSubWindow* sub = saUI->createFigureWindow();
+        SAMdiSubWindow* sub = saUI->createFigureWindow();
         SAFigureWindow* fig = saUI->getFigureWidgetFromMdiSubWindow(sub);
         SAChart2D* chart = fig->current2DPlot();
         if(nullptr == chart)
@@ -614,7 +615,7 @@ void FunDataPreprocessing::pointSmoothInValue()
 
 bool getSigmaDetectPorperty(double &sigma,bool* isMark,bool* isChangPlot,SAUIInterface* ui)
 {
-    SAPropertySetDialog dlg(ui->getMainWindowPtr(),static_cast<SAPropertySetDialog::BrowserType>(SAGUIGlobalConfig::getDefaultPropertySetDialogType()));
+    SAPropertySetDialog dlg(ui->getMainWindowPtr(),SAPropertySetDialog::GroupBoxType);
     dlg.appendGroup(TR("property set"));
     dlg.appendDoubleProperty("sigma",TR("sigma")
                              ,0,std::numeric_limits<double>::max()

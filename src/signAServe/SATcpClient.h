@@ -5,19 +5,23 @@
 #include "SAProtocolHeader.h"
 #include <QAbstractSocket>
 #include <QObject>
-
+#include <memory>
+#include "SAXMLProtocolParser.h"
 #define __PRINT_FUNCTION_RUN_INFO 1
 #if __PRINT_FUNCTION_RUN_INFO
 #include <QDebug>
+#ifndef FUNCTION_RUN_PRINT
 #define FUNCTION_RUN_PRINT() \
     do{\
       qDebug() << " >> fun:" << __FUNCTION__ << " line:" << __LINE__;\
     }while(0)
+#endif
 #else
 #define FUNCTION_RUN_PRINT()
 #endif
 
 class SATcpClientPrivate;
+class SAXMLProtocolParser;
 class SATcpSocket;
 /**
  * @brief 客户端的封装
@@ -32,12 +36,14 @@ class SASERVE_EXPORT SATcpClient : public QObject
     Q_OBJECT
 public:
     enum ClientError{
-        UnknowError ///< 未知错误
+        UnknowError = 0///< 未知错误
         ,SharedMemoryNotReadyError = 1///< 共享内存还未准备好
-        ,SharedMemoryGetPortError ///< 从共享内存获取的port不正确
-        ,ConnectTimeout ///< 连接服务器超时
+        ,SharedMemoryGetPortError = 2 ///< 从共享内存获取的port不正确
+        ,ConnectTimeout = 3 ///< 连接服务器超时
+        ,InvalidXmlProtocol = 4 ///< 收到的是xml协议请求，但无法解析到标准xml协议
+        ,MaxSATcpClientError = 20 ///< SATcpClient对应的最大错误值
 
-        ,UserDefineError = 1000 ///< 用户自定义错误
+        ,UserDefineError = 9000 ///< 用户自定义错误
     };
 
     SATcpClient(QObject* par = nullptr);
@@ -46,9 +52,9 @@ public:
     bool write(const SAProtocolHeader& header,const QByteArray& data);
     //处理协议数据的函数
     virtual bool deal(const SAProtocolHeader &header, const QByteArray &data);
-    virtual bool dealResult(const SAProtocolHeader &header, const QVariantHash &data);
+    virtual bool dealXmlProtocol(const SAProtocolHeader &header, SAXMLProtocolParserPtr xml);
     //获取socket
-    inline SATcpSocket* getSocket() const;
+    SATcpSocket* getSocket() const;
 public slots:
     //连接服务器
     bool connectToServe(int timeout = 5000);
@@ -85,18 +91,18 @@ signals:
      */
     void replyToken(const QString& token,int sequenceID);
     /**
-     * @brief error
+     * @brief socket错误
      * @param socketError
      */
-    void error(QAbstractSocket::SocketError socketError);
+    void socketError(QAbstractSocket::SocketError socketError);
     /**
      * @brief socket连接成功的信号
      */
-    void connected();
+    void connectedServe();
     /**
      * @brief socket连接丢失的信号
      */
-    void disconnected();
+    void disconnectedServe();
     /**
      * @brief 心跳超时
      * @param lastDatetime 上次心跳的时间

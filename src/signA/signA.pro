@@ -3,7 +3,6 @@
 # Project created by QtCreator 2013-07-10T22:16:43
 #
 #-------------------------------------------------
-message("")
 message("--------------SA---------------------------")
 message(Qt version: $$[QT_VERSION])
 message(Qt is installed in $$[QT_INSTALL_PREFIX])
@@ -21,11 +20,7 @@ QT += opengl
 QT += network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-
-
-DEFINES -= SA_TDMS
-
-
+win32-msvc*:QMAKE_CXXFLAGS += /wd"4819" #忽略warning C4819: 该文件包含不能在当前代码CP936)中表示的字符。请将该文件保存Unicode 格式以防止数据丢
 TARGET = signA
 TEMPLATE = app
 CONFIG += c++11
@@ -36,13 +31,12 @@ INCLUDEPATH += $$PWD
 SOURCES += main.cpp\
     mainwindow.cpp \
     progressStateWidget.cpp \
-    AboutDialog.cpp \   
+    AboutDialog.cpp \
     SAThemeManager.cpp \
     SATabValueViewerWidget.cpp \
     SADrawDelegate.cpp \
     SAMainWindowDelegate.cpp \
     SAInformationStatusWidget.cpp \
-    CurveSelectDialog.cpp \
     SAPluginManager.cpp \
     SAUI.cpp \
     MainWindowPrivate.cpp \
@@ -60,7 +54,6 @@ HEADERS  += mainwindow.h \
     SAMainWindowDelegate.h \
     SAInformationStatusWidget.h \
     QtPropertyIdStorage.h \
-    CurveSelectDialog.h \
     SAPluginManager.h \
     SAUI.h \
     SAResourDefine.h \
@@ -80,6 +73,8 @@ FORMS    += \
 OTHER_FILES += \
     readme.md\
     $$PWD/../readme.md\
+    $$PWD/../schedule.md\
+    $$PWD/../../doc/dev_records.md\
     logo.rc
 
 RESOURCES += \
@@ -103,8 +98,6 @@ include($$PWD/../signAProtocol/signAProtocol.pri)
 include($$PWD/../signAServe/signAServe.pri)
 #sa api support
 include($$PWD/../signALib/signALib.pri)
-#sa multiprocessing process support
-include($$PWD/../signAProcess/signAProcess.pri)
 #sa chart support
 include($$PWD/../signAChart/signAChart.pri)
 #sa signACommonUI support
@@ -113,11 +106,6 @@ include($$PWD/../signACommonUI/signACommonUI.pri)
 include($$PWD/../SARibbonBar/SARibbon/SARibbonBar.pri)
 #}
 
-
-#the czy extern support
-#{
-include($$PWD/../czy/czy.pri)#the czy extern support
-#}
 
 include($$PWD/model/model.pri)# the seldefine model
 win32{

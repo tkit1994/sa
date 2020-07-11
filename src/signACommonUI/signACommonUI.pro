@@ -4,6 +4,10 @@
 # sa chart api lib
 #
 #-------------------------------------------------
+message("------------signACommonUI 通用UI交互封装-------------------")
+message(Qt version: $$[QT_VERSION])
+message(Qt is installed in $$[QT_INSTALL_PREFIX])
+win32-msvc*:QMAKE_CXXFLAGS += /wd"4819" #忽略warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
 QT += core gui xml
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = signACommonUI
@@ -11,26 +15,28 @@ TEMPLATE = lib
 CONFIG += dll
 CONFIG(debug, debug|release){
     DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_debug/libs
+    DEPENDPATH += $$PWD/../bin_qt$$[QT_VERSION]_debug/libs
 }else {
     DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_release/libs
+    DEPENDPATH += $$PWD/../bin_qt$$[QT_VERSION]_release/libs
 }
 
 CONFIG += c++11
-QWT_CONFIG += QwtDll
 DEFINES += SA_COMMON_UI_MAKE #make dll
 DEFINES += SA_COMMON_UI_USE_DYNAMIC #定义使用dynamic_cast 而不是rtti
-DEPENDPATH += ../bin/lib
+
+#czy
+#sa util
+include($$PWD/../signAUtil/signAUtil.pri)
 #sa api support
 include($$PWD/../signALib/signALib.pri)
 #sa protocal support
 include($$PWD/../signAProtocol/signAProtocol.pri)
 #sa chart support
 include($$PWD/../signAChart/signAChart.pri)
-#czy
-include($$PWD/../czy/czy.pri)
 #propertybrowser
 #include($$PWD/../3rdParty/qtpropertybrowser/src/qtpropertybrowser.pri)#propertybrowser support
-include($$[QT_INSTALL_PREFIX]/../Src/qttools/src/shared/qtpropertybrowser/qtpropertybrowser.pri)
+include($$PWD/../3rdParty/qtpropertybrowser/propertyBrowser.pri)
 #QWT
 include($$PWD/../3rdParty/qwt/qwt_set.pri)
 #color picker support
@@ -75,7 +81,8 @@ HEADERS += \
     SAValueTableOptCommands.h \
     SAPlotDataModel.h \
     SAGUIGlobalConfig.h \
-    SAFigureSetWidget.h
+    SAFigureSetWidget.h \
+    SAMainWindow.h
 
 SOURCES += \
     SAUIReflection.cpp \
@@ -109,7 +116,8 @@ SOURCES += \
     SAValueTableOptDeleteCommand_impl.cpp \
     SAValueTableOptInsertCommand_impl.cpp \
     SAGUIGlobalConfig.cpp \
-    SAFigureSetWidget.cpp
+    SAFigureSetWidget.cpp \
+    SAMainWindow.cpp
 
 FORMS += \
     SAValueSelectDialog.ui \

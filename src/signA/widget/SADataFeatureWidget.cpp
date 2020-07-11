@@ -19,10 +19,35 @@
 #include "SAUIReflection.h"
 #include "SAUIInterface.h"
 #include "SAMdiSubWindow.h"
-#include "DataFeatureTreeModel.h"
+#include "SADataFeatureTreeModel.h"
 #include "SADataFeatureItem.h"
 #define _DEBUG_PRINT
 #define _DEBUG_OUTPUT
+
+
+
+
+SADataFeatureWidget::_DataInfo::_DataInfo():
+    item(nullptr)
+    ,midwidget(nullptr)
+    ,chart(nullptr)
+{
+
+}
+
+SADataFeatureWidget::_DataInfo::_DataInfo(QwtPlotItem* plotitem, QMdiSubWindow *midwidget, SAChart2D *chartptr):
+    item(plotitem)
+    ,midwidget(midwidget)
+    ,chart(chartptr)
+{
+
+}
+
+bool SADataFeatureWidget::_DataInfo::operator <(const SADataFeatureWidget::_DataInfo &other)
+{
+    return ((int)(this->item) + (int)(this->chart) + (int)(this->midwidget)) < ((int)other.item + (int)other.chart + (int)other.midwidget);
+}
+
 
 
 
@@ -30,12 +55,14 @@ SADataFeatureWidget::SADataFeatureWidget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::SADataFeatureWidget)
   ,m_lastActiveSubWindow(nullptr)
-  ,m_wndPtrKey(1)
 {
     ui->setupUi(this);
+    connect(ui->treeView,&QTreeView::clicked,this,&SADataFeatureWidget::onTreeViewClicked);
+    connect(ui->toolButton_clearDataFeature,&QToolButton::clicked,this,&SADataFeatureWidget::onToolButtonClearDataFeatureClicked);
     //消息转发
     connect(&m_client,&SADataClient::messageInfo,this,&SADataFeatureWidget::showMessageInfo);
     connect(&m_client,&SADataClient::heartbeatCheckerTimerout,this,&SADataFeatureWidget::onHeartbeatCheckerTimerout);
+    connect(&m_client,&SADataClient::rec2DPointsDescribe,this,&SADataFeatureWidget::onRec2DPointsDescribe);
     m_client.tryConnectToServe();
 }
 
@@ -48,41 +75,107 @@ SADataFeatureWidget::~SADataFeatureWidget()
  * @brief 子窗口激活槽
  * @param arg1
  */
-void SADataFeatureWidget::mdiSubWindowActived(QMdiSubWindow *arg1)
+void SADataFeatureWidget::mdiSubWindowActived(QMdiSubWindow *subwnd)
 {
-    if(nullptr == arg1)
+    if(nullptr == subwnd)
     {
         return;
     }
-    m_lastActiveSubWindow = arg1;
-
-    setWindowTitle(tr("data feature[%1]").arg(arg1->windowTitle()));
-    QAbstractItemModel* model = m_subWindowToDataInfo.value(arg1,nullptr);
-    if(model)
+    //记录最后一次激活的窗口
+    m_lastActiveSubWindow = subwnd;
+    setWindowTitle(tr("data feature[%1]").arg(subwnd->windowTitle()));
+    //查找此窗口是否有对应的模型
+    auto im = m_mdiToModel.find(subwnd);
+    if(im != m_mdiToModel.end())
     {
-        checkModelItem(model,arg1);
-        ui->treeView->setModel(model);
-        ui->treeView->expandToDepth(1);
+        //说明已经有model。把model设置进tree里
+        ui->treeView->setModel(im.value());
     }
     else
     {
         //说明没有对应的内容，把数据下发给数据处理进程进行处理
-        SAFigureWindow* figure = getChartWidgetFromSubWindow(m_lastActiveSubWindow);//记录当前的绘图窗口
+        SAFigureWindow* figure = getFigureFromSubWindow(subwnd);//记录当前的绘图窗口
         if(figure)
         {
-            callCalcFigureWindowFeature(figure);
+            //说明是绘图窗口，进入这个函数，说明是首次建立的窗口，此时就建立空模型
+            //先建立空模型，建立模型会把figure的chart和item处理好，等待计算的绑定
+            SADataFeatureTreeModel* m = new SADataFeatureTreeModel(figure,this);
+            //记录子窗口和模型对应关系
+            m_mdiToModel[subwnd] = m;
+            //请求远程计算，计算完结果返回后会自动填充进模型中从而在界面上显示
+            calcFigureFeature(subwnd,figure,m);
         }
     }
 
 }
+
+
+///
+/// \brief 计算绘图窗口的dataFeature
+/// \param figure 绘图窗口指针，不允许null
+///
+void SADataFeatureWidget::calcFigureFeature(QMdiSubWindow *subwnd,SAFigureWindow *figure,SADataFeatureTreeModel* model)
+{
+    Q_CHECK_PTR(subwnd);
+    Q_CHECK_PTR(figure);
+    Q_CHECK_PTR(model);
+    //用于进行请求的key标识，这里将记录key和_DataInfo的关系，以便reply能找到对应是哪个item的内容
+    static int s_key = 0;
+    ++s_key;
+    //获取所有的chart逐一调用接口进行计算
+    QList<SAChart2D*> charts = figure->get2DPlots();
+    for(SAChart2D* c : charts)
+    {
+        //把可计算的item筛选出来
+        QwtPlotItemList itemList = SADataFeatureTreeModel::filterCanDisplayItems(c->itemList());
+        for(auto i : itemList)
+        {
+            calcPlotItemFeature(subwnd,c,model,i,s_key);
+        }
+    }
+}
+
+/**
+ * @brief 计算每个曲线的信息
+ * @param subwnd 子窗口
+ * @param chart 对应的sa2dchart
+ * @param model 对应的model
+ * @param plotitem 对应的plotitem
+ * @param key 赋予的请求序号
+ */
+void SADataFeatureWidget::calcPlotItemFeature(QMdiSubWindow *subwnd,SAChart2D *chart,SADataFeatureTreeModel* model,QwtPlotItem *plotitem,int key)
+{
+    Q_CHECK_PTR(chart);
+    _DataInfo d = _DataInfo(plotitem,subwnd,chart);
+    switch(plotitem->rtti())
+    {
+    case QwtPlotItem::Rtti_PlotCurve:
+    {
+        QVector<QPointF> xys;
+        SAChart::getXYDatas(xys,static_cast<const QwtPlotCurve*>(plotitem));
+        m_keyToDatainfo[key] = d;
+        //建立初步的DataFeatureTreeModel先把类型设置进去
+        if(!m_client.request2DPointsDescribe(xys,key))
+        {
+            //如果发送请求失败，把记录清除
+            m_keyToDatainfo.remove(key);
+        }
+        break;
+    }
+    default:
+        break;
+    }
+}
+
 ///
 /// \brief 子窗口关闭槽
 /// \param arg1
 ///
 void SADataFeatureWidget::mdiSubWindowClosed(QMdiSubWindow *arg1)
 {
-    auto modelIte = m_subWindowToDataInfo.find(arg1);
-    if(modelIte != m_subWindowToDataInfo.end())
+
+    auto modelIte = m_mdiToModel.find(arg1);
+    if(modelIte != m_mdiToModel.end())
     {
         //子窗口关闭，把对应的对应model删除，如果正在显示这个model，先设置为null
         QAbstractItemModel* model = modelIte.value();
@@ -95,14 +188,14 @@ void SADataFeatureWidget::mdiSubWindowClosed(QMdiSubWindow *arg1)
             delete model;
         }
     }
-    m_subWindowToDataInfo.remove(arg1);
+    m_mdiToModel.remove(arg1);
 }
 ///
 /// \brief 从子窗口获取绘图窗口
 /// \param sub
 /// \return
 ///
-SAFigureWindow *SADataFeatureWidget::getChartWidgetFromSubWindow(QMdiSubWindow *sub)
+SAFigureWindow *SADataFeatureWidget::getFigureFromSubWindow(QMdiSubWindow *sub)
 {
     if(nullptr == sub)
     {
@@ -110,174 +203,30 @@ SAFigureWindow *SADataFeatureWidget::getChartWidgetFromSubWindow(QMdiSubWindow *
     }
     return qobject_cast<SAFigureWindow*>(sub->widget());
 }
-///
-/// \brief 计算绘图窗口的dataFeature
-/// \param figure 绘图窗口指针，不允许null
-///
-void SADataFeatureWidget::callCalcFigureWindowFeature(SAFigureWindow *figure)
-{
-#ifdef USE_THREAD_CALC_FEATURE//使用多线程
-
-#else //使用多进程
-    QList<SAChart2D*> charts = figure->get2DPlots();
-    for(auto i=charts.begin();i!=charts.end();++i)
-    {
-        QwtPlotItemList itemList = (*i)->itemList();
-        for(auto j=itemList.begin();j!=itemList.end();++j)
-        {
-            calcPlotItemFeature(*j,m_lastActiveSubWindow,*i);
-        }
-    }
-#endif
-}
-
-#ifdef USE_IPC_CALC_FEATURE//使用多进程
-///
-/// \brief 计算一个plot item
-/// \param plotitem
-/// \param arg1
-/// \param arg2
-///
-void SADataFeatureWidget::calcPlotItemFeature(const QwtPlotItem *plotitem, const QMdiSubWindow *arg1, const SAChart2D *arg2)
-{
-    switch(plotitem->rtti())
-    {
-    case QwtPlotItem::Rtti_PlotCurve:
-        QVector<QPointF> serise;
-        SAChart::getPlotCurveSample(const_cast<QwtPlotItem *>(plotitem),serise);
-//        m_client.
-
-
-//        if(m_socketOpt)
-//        {
-//            qDebug() << "send item:" << plotitem->title().text() << " to calc";
-//            TmpStru ts(const_cast<QwtPlotItem *>(plotitem),const_cast<QMdiSubWindow *>(arg1),const_cast<SAChart2D *>(arg2));
-//            ++m_wndPtrKey;
-//            m_key2wndPtr[m_wndPtrKey] = ts;
-//            m_socketOpt->send2DPointFs(serise,m_wndPtrKey);
-//        }
-    }
-
-//    if( const QwtSeriesStore<QPointF>* cur = dynamic_cast<const QwtSeriesStore<QPointF>*>(plotitem)
-//            /*QwtPlotItem::Rtti_PlotCurve == plotitem->rtti()*/
-//            )
-//    {
-//        const size_t size = cur->dataSize();
-//        QVector<QPointF> datas;
-//        datas.reserve(size);
-//        for(size_t c = 0;c<size;++c)
-//        {
-//            datas.append(cur->sample(c));
-//        }
-//        if(m_socketOpt)
-//        {
-//            qDebug() << "send item:" << plotitem->title().text() << " to calc";
-//            TmpStru ts(const_cast<QwtPlotItem *>(plotitem),const_cast<QMdiSubWindow *>(arg1),const_cast<SAChart2D *>(arg2));
-//            ++m_wndPtrKey;
-//            m_key2wndPtr[m_wndPtrKey] = ts;
-//            m_socketOpt->send2DPointFs(datas,m_wndPtrKey);
-//        }
-//    }
-}
-#endif
-
-void SADataFeatureWidget::checkModelItem(QAbstractItemModel *baseModel, QMdiSubWindow *subWndPtr)
-{
-    DataFeatureTreeModel* featureModel = qobject_cast<DataFeatureTreeModel*>(baseModel);
-    if(nullptr == featureModel)
-    {
-        return;
-    }
-    SAFigureWindow * fig = SAUIInterface::getFigureWidgetFromMdiSubWindow(subWndPtr);
-    if(nullptr == fig)
-    {
-        return;
-    }
-    QList<SAChart2D *> plots = fig->get2DPlots();
-    QList<SADataFeatureItem* >  chartItems = featureModel->getRootItems();
-    //检测有没有chart被删除了
-    std::for_each(chartItems.begin(),chartItems.end(),[&plots,&featureModel](SADataFeatureItem* c){
-        SAChart2D* p = DataFeatureTreeModel::getChartPtrFromItem(c);
-        if(p)
-        {
-            if(!plots.contains(p))
-            {
-                if(featureModel->takeRootItem(c))
-                {
-                    if(c)
-                    {
-                        delete c;
-                    }
-                }
-            }
-        }
-
-    });
-    //检测item有没有新加或删除
-    for(int i=0;i<plots.size();++i)
-    {
-        QwtPlotItemList itemLists = plots[i]->itemList();
-        SADataFeatureItem* ci = featureModel->findChartItem(plots[i]);
-        if(nullptr == ci)
-        {
-            continue;
-        }
-        QSet<QwtPlotItem*> itemSet = featureModel->getItemSetFromItem(ci);
-        for(int j=0;j<itemLists.size();++j)
-        {
-            if(!itemSet.contains(itemLists[j]))
-            {
-#ifdef USE_IPC_CALC_FEATURE//使用多进程
-                calcPlotItemFeature(itemLists[j],subWndPtr,plots[i]);
-#endif
-            }
-        }
-    }
-
-
-}
-
-
-
-
-#ifdef USE_IPC_CALC_FEATURE//使用多进程
-
-
-
-
-/**
- * @brief 定时心跳检测时间到达触发槽
- */
-void SADataFeatureWidget::onHeartbeatCheckerTimerout()
-{
-    emit showMessageInfo(tr("connect lost !"),SA::NormalMessage);
-}
-
-
-#endif
-
 
 ///
 /// \brief 数据特性树点击
 /// \param index
 ///
-void SADataFeatureWidget::on_treeView_clicked(const QModelIndex &index)
+void SADataFeatureWidget::onTreeViewClicked(const QModelIndex &index)
 {
     if(!index.isValid())
         return;
     if(nullptr == m_lastActiveSubWindow)
         return;
-    SAFigureWindow* figure = getChartWidgetFromSubWindow(m_lastActiveSubWindow);//记录当前的绘图窗口
+    SAFigureWindow* figure = getFigureFromSubWindow(m_lastActiveSubWindow);//记录当前的绘图窗口
     if(nullptr == figure)
     {
         saPrint() << "can not find FigureWindow";
         return;
     }
-    on_toolButton_clearDataFeature_clicked();//先清除标记
+    onToolButtonClearDataFeatureClicked();//先清除标记
     QSet<SAChart2D*> chartPlots = figure->get2DPlots().toSet();
 
     QItemSelectionModel* selModel = ui->treeView->selectionModel();
-    DataFeatureTreeModel* curFeatureModel = static_cast<DataFeatureTreeModel*>(ui->treeView->model());
+
+    /*
+    SADataFeatureTreeModel* curFeatureModel = static_cast<SADataFeatureTreeModel*>(ui->treeView->model());
     if(!selModel || !curFeatureModel)
     {
         saPrint() << "can not find DataFeatureTreeModel";
@@ -298,7 +247,7 @@ void SADataFeatureWidget::on_treeView_clicked(const QModelIndex &index)
         }
         SADataFeatureItem* topParent = item->topParent();
         //根据topParent找到对应的SAChart2D;
-        SAChart2D* c = DataFeatureTreeModel::getChartPtrFromItem(topParent);
+        SAChart2D* c = SADataFeatureTreeModel::getChartPtrFromItem(topParent);
         if(nullptr == c)
         {
             saPrint() << "can not getChartPtrFromItem";
@@ -340,15 +289,16 @@ void SADataFeatureWidget::on_treeView_clicked(const QModelIndex &index)
             return;
         }
     }
+    */
 }
 ///
 /// \brief 清除标记按钮
 ///
-void SADataFeatureWidget::on_toolButton_clearDataFeature_clicked()
+void SADataFeatureWidget::onToolButtonClearDataFeatureClicked()
 {
     if(nullptr == m_lastActiveSubWindow)
         return;
-    SAFigureWindow* figure = getChartWidgetFromSubWindow(m_lastActiveSubWindow);//记录当前的绘图窗口
+    SAFigureWindow* figure = getFigureFromSubWindow(m_lastActiveSubWindow);//记录当前的绘图窗口
     if(nullptr == figure)
         return;
     QList<SAChart2D*> charts= figure->get2DPlots();
@@ -356,6 +306,66 @@ void SADataFeatureWidget::on_toolButton_clearDataFeature_clicked()
         p->removeAllPlotMarker();
     });
 }
+
+void SADataFeatureWidget::onChartHide()
+{
+
+}
+
+void SADataFeatureWidget::onChartDestroy()
+{
+
+}
+
+void SADataFeatureWidget::onFigureDestroy()
+{
+
+}
+
+void SADataFeatureWidget::onHeartbeatCheckerTimerout()
+{
+    emit showMessageInfo(tr("data process serve heartbreat time out"),SA::WarningMessage);
+}
+
+/**
+ * @brief 获取服务器反馈
+ * @param header
+ * @param res
+ */
+void SADataFeatureWidget::onRec2DPointsDescribe(const SAProtocolHeader &header, SAXMLProtocolParserPtr res)
+{
+    Q_UNUSED(header);
+
+}
+
+/**
+ * @brief 对MdiSubWindow进行绑定
+ * @param w
+ */
+void SADataFeatureWidget::bindMdiSubWindow(QMdiSubWindow *w)
+{
+    if(nullptr == w)
+    {
+        return;
+    }
+    SAFigureWindow* fig = getFigureFromSubWindow(w);
+    if(nullptr == fig)
+    {
+        return;
+    }
+    //进行信号绑定
+    connect(fig,&SAFigureWindow::destroyed,this,&SADataFeatureWidget::onFigureDestroy);
+
+}
+/**
+ * @brief 对已经绑定的MdiSubWindow进行解绑
+ * @param w
+ */
+void SADataFeatureWidget::unbindMdiSubWindow(QMdiSubWindow *w)
+{
+
+}
+
 
 
 

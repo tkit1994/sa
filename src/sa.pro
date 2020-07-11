@@ -1,9 +1,9 @@
 TEMPLATE = subdirs
 SUBDIRS = \
-          signALib\
           signAProtocol\
-          signARPC\
-          signAProcess\
+          signALib\
+          signAScience\
+          signAServe\
           signAChart\
           signACommonUI\
           signACoreFun\
@@ -19,3 +19,7 @@ TRANSLATIONS+= \
             translations/zh.ts\#chinese
             translations/en.ts #English
 
+OTHER_FILES += \
+    readme.md\
+    schedule.md\
+    $$PWD/../doc/dev_records.md

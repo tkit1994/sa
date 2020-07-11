@@ -3,13 +3,12 @@
 #include "SAChart.h"
 #include "qwt_plot_barchart.h"
 #include "SAAbstractRegionSelectEditor.h"
-#include "czyQtPointAlgorithm.h"
 #include "SAFigureOptCommands.h"
 #include "SAFigureReplaceDatasCommand.h"
 #include <QHash>
 #include "SALog.h"
 #include <memory>
-#include "SALog.h"
+#include "SAQtSeriesAlgorithm.h"
 class chart2d_base_info
 {
 public:
@@ -456,7 +455,7 @@ bool SASelectRegionDataEditor::completeEdit(const QPoint& screenPoint)
     //选区进行移动
     QPointF currentPoint = editor->invTransform(screenPoint);
     QPointF originPoint = editor->invTransform(d_ptr->m_firstPressedScreenPoint);
-    QPointF offset = czy::calcOffset(currentPoint,originPoint);
+    QPointF offset = SA::calcOffset(currentPoint,originPoint);
     QPainterPath p = d_ptr->m_selectRegionOrigin.translated(offset);
     new SAFigureChartSelectionRegionAddCommand(chart2D()
                                                 ,d_ptr->m_selectRegionOrigin

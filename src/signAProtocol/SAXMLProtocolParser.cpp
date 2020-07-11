@@ -25,17 +25,18 @@ public:
     QDomElement getGroupEle(const QString &groupName) const;
     //有别于getGroupEle，如果没有这个组会创建一个组，此函数必定返回一个有效的组节点
     QDomElement testGroupEle(const QString &groupName);
-    QVariant getValueInDefaultGroup(const QString &keyName, const QVariant &defaultVal = QVariant()) const;
-    QVariant getValue(const QString &groupName, const QString &keyName, const QVariant &defaultVal = QVariant()) const;
+    QVariant getValue(const QString &keyName, const QVariant &defaultVal = QVariant()) const;
+    QVariant getValueInGroup(const QString &groupName, const QString &keyName, const QVariant &defaultVal = QVariant()) const;
     QVariant getValue(QDomElement item, const QVariant &defaultVal = QVariant()) const;
     QDomElement getValueEle(const QString &groupName, const QString &keyName) const;
     //写入value数据
-    QDomElement setValueInDefaultGroup(const QString &keyName, const QVariant &var);
+    QDomElement setValue(const QString &keyName, const QVariant &var);
     QDomElement setValue(const QString &groupName, const QString &keyName, const QVariant &var);
     //写入value数据，数据的父级对象不在mValuesEle下，而是指定在par下
     QDomElement setValue(const QString &keyName, const QVariant &var, QDomElement par);
     //获取组写的所有item名
     QStringList getKeyNames(const QString &groupName) const;
+    QStringList getDefaultGroupKeyNames() const;
     //
     void setClassID(int classid);
     void setFunID(int funid);
@@ -143,9 +144,9 @@ bool SAXMLProtocolParserPrivate::parserDoc()
     // 获取default group
     QDomNodeList defaultgroupEles = mValuesEle.elementsByTagName(SA_XML_TAG_DEFAULTGROUP);
     auto size = defaultgroupEles.size();
-    for (auto i = 0;i<size;++i)
+    if(size > 0)
     {
-        QDomElement ge = defaultgroupEles.at(i).toElement();
+        QDomElement ge = defaultgroupEles.at(0).toElement();
         // 获取default group下的item信息
         QDomNodeList itemEles = ge.elementsByTagName(SA_XML_TAG_ITEM);
         auto itemsize = itemEles.size();
@@ -153,8 +154,10 @@ bool SAXMLProtocolParserPrivate::parserDoc()
         {
             QDomElement ie = itemEles.at(j).toElement();
             QString itemname = ie.attribute(SA_XML_ATT_NAME);
-            mItemEles[makeFullItemName(DEFAULT_GROUP_NAME,itemname)] = ie;
+            mItemEles[makeFullItemName(SAXMLProtocolParser::defaultGroupName(),itemname)] = ie;
         }
+        //把默认分组也加入
+        mGroupEle[SAXMLProtocolParser::defaultGroupName()] = ge;
     }
     // 获取group内容
     QDomNodeList groupEles = mValuesEle.elementsByTagName(SA_XML_TAG_GROUP);
@@ -213,13 +216,13 @@ QDomElement SAXMLProtocolParserPrivate::testGroupEle(const QString &groupName)
     return g;
 }
 
-QVariant SAXMLProtocolParserPrivate::getValueInDefaultGroup(const QString &keyName, const QVariant &defaultVal) const
+QVariant SAXMLProtocolParserPrivate::getValue(const QString &keyName, const QVariant &defaultVal) const
 {
-    QDomElement item = mItemEles.value(makeFullItemName(DEFAULT_GROUP_NAME,keyName),QDomElement());
+    QDomElement item = mItemEles.value(makeFullItemName(SAXMLProtocolParser::defaultGroupName(),keyName),QDomElement());
     return getValue(item,defaultVal);
 }
 
-QVariant SAXMLProtocolParserPrivate::getValue(const QString &groupName, const QString &keyName, const QVariant &defaultVal) const
+QVariant SAXMLProtocolParserPrivate::getValueInGroup(const QString &groupName, const QString &keyName, const QVariant &defaultVal) const
 {
     QDomElement item = getValueEle(groupName,keyName);
     return getValue(item,defaultVal);
@@ -304,10 +307,10 @@ QDomElement SAXMLProtocolParserPrivate::getValueEle(const QString &groupName, co
     return mItemEles.value(makeFullItemName(groupName,keyName),QDomElement());
 }
 
-QDomElement SAXMLProtocolParserPrivate::setValueInDefaultGroup(const QString &keyName, const QVariant &var)
+QDomElement SAXMLProtocolParserPrivate::setValue(const QString &keyName, const QVariant &var)
 {
     QDomElement i = setValue(keyName,var,mDefaultGroup);
-    mItemEles[makeFullItemName(DEFAULT_GROUP_NAME,keyName)] = i;
+    mItemEles[makeFullItemName(SAXMLProtocolParser::defaultGroupName(),keyName)] = i;
     return i;
 }
 
@@ -334,7 +337,10 @@ QDomElement SAXMLProtocolParserPrivate::setValue(const QString &keyName, const Q
 {
     QDomElement item = mDoc.createElement(SA_XML_TAG_ITEM);
     QString vartype = var.typeName();
-    item.setAttribute(SA_XML_ATT_NAME,keyName);
+    if (!keyName.isNull())
+    {
+        item.setAttribute(SA_XML_ATT_NAME,keyName);
+    }
     item.setAttribute(SA_XML_ATT_TYPE,vartype);
     //对数组类型进行特殊处理
     if(0 == QString::compare(vartype,SA_XML_VAR_ARR_LIST,Qt::CaseInsensitive))
@@ -342,7 +348,7 @@ QDomElement SAXMLProtocolParserPrivate::setValue(const QString &keyName, const Q
         QList<QVariant> l = var.toList();
         for (auto i = l.begin();i!=l.end();++i)
         {
-            setValue("",*i,item);
+            setValue(QString(),*i,item);
         }
     }
     else if (0 == QString::compare(vartype,SA_XML_VAR_ARR_MAP,Qt::CaseInsensitive))
@@ -366,7 +372,7 @@ QDomElement SAXMLProtocolParserPrivate::setValue(const QString &keyName, const Q
         QStringList l = var.toStringList();
         for (auto i = l.begin();i!=l.end();++i)
         {
-            setValue("",*i,item);
+            setValue(QString(),*i,item);
         }
     }
     else
@@ -398,6 +404,11 @@ QStringList SAXMLProtocolParserPrivate::getKeyNames(const QString &groupName) co
             res.append(n);
     }
     return res;
+}
+
+QStringList SAXMLProtocolParserPrivate::getDefaultGroupKeyNames() const
+{
+    return getKeyNames(SAXMLProtocolParser::defaultGroupName());
 }
 
 void SAXMLProtocolParserPrivate::setClassID(int classid)
@@ -447,6 +458,7 @@ void SAXMLProtocolParserPrivate::_init()
     mRootEle.appendChild(mValuesEle);
     mDefaultGroup = mDoc.createElement(SA_XML_TAG_DEFAULTGROUP);
     mValuesEle.appendChild(mDefaultGroup);
+    mGroupEle[SAXMLProtocolParser::defaultGroupName()] = mDefaultGroup;
 }
 
 
@@ -509,9 +521,9 @@ void SAXMLProtocolParser::setValue(const QString &groupName, const QString &keyN
     d_ptr->setValue(groupName,keyName,var);
 }
 
-void SAXMLProtocolParser::setValueInDefaultGroup(const QString &keyName, const QVariant &var)
+void SAXMLProtocolParser::setValue(const QString &keyName, const QVariant &var)
 {
-    d_ptr->setValueInDefaultGroup(keyName,var);
+    d_ptr->setValue(keyName,var);
 }
 
 QStringList SAXMLProtocolParser::getGroupNames() const
@@ -522,6 +534,15 @@ QStringList SAXMLProtocolParser::getGroupNames() const
 QStringList SAXMLProtocolParser::getKeyNames(const QString &groupName) const
 {
     return d_ptr->getKeyNames(groupName);
+}
+
+/**
+ * @brief 从默认分组中获取key值
+ * @return
+ */
+QStringList SAXMLProtocolParser::getKeyNames() const
+{
+    return d_ptr->getKeyNames(SAXMLProtocolParser::defaultGroupName());
 }
 
 bool SAXMLProtocolParser::fromString(const QString &str)
@@ -544,6 +565,11 @@ QByteArray SAXMLProtocolParser::toByteArray() const
     return toString().toUtf8();
 }
 
+QString SAXMLProtocolParser::defaultGroupName()
+{
+    return DEFAULT_GROUP_NAME;
+}
+
 bool SAXMLProtocolParser::isHasGroup(const QString &groupName) const
 {
     return d_ptr->isHasGroup(groupName);
@@ -556,12 +582,12 @@ bool SAXMLProtocolParser::isHasKey(const QString &groupName, const QString &keyN
 
 QVariant SAXMLProtocolParser::getValue(const QString &groupName, const QString &keyName, const QVariant &defaultVal) const
 {
-    return d_ptr->getValue(groupName,keyName,defaultVal);
+    return d_ptr->getValueInGroup(groupName,keyName,defaultVal);
 }
 
-QVariant SAXMLProtocolParser::getValueInDefaultGroup(const QString &keyName, const QVariant &defaultVal) const
+QVariant SAXMLProtocolParser::getDefaultGroupValue(const QString &keyName, const QVariant &defaultVal) const
 {
-    return d_ptr->getValueInDefaultGroup(keyName,defaultVal);
+    return d_ptr->getValue(keyName,defaultVal);
 }
 
 /**
@@ -574,3 +600,8 @@ QString SAXMLProtocolParser::getErrorString() const
 }
 
 
+
+SAXMLProtocolParserPtr makeXMLProtocolParserPtr()
+{
+    return std::make_shared<SAXMLProtocolParser>();
+}

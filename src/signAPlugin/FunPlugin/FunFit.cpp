@@ -247,9 +247,10 @@ void polyfitInValue(SAUIInterface* ui)
 
 bool getPolyfitConfig(int &order,SAUIInterface* ui)
 {
+    Q_UNUSED(ui);
     const QString idPolyN = "polyN";
     SAPropertySetDialog dlg(saUI->getMainWindowPtr()
-                            ,static_cast<SAPropertySetDialog::BrowserType>(SAGUIGlobalConfig::getDefaultPropertySetDialogType()));
+                            ,SAPropertySetDialog::GroupBoxType);
     dlg.appendGroup(TR("property set"));
     dlg.appendIntProperty(idPolyN,TR("order of poly")
                              ,1,20

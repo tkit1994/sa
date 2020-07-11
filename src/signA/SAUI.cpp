@@ -5,7 +5,7 @@
 #include <QMainWindow>
 #include "SAFigureWindow.h"
 #include "mainwindow.h"
-#include "CurveSelectDialog.h" //图线选择窗口
+#include "SACurveSelectDialog.h" //图线选择窗口
 
 SAUI::SAUI(MainWindow* mainWnd)
     :m_mainWnd(mainWnd)
@@ -37,6 +37,13 @@ void SAUI::updateValueManagerTreeView()
 {
     if(m_mainWnd)
         m_mainWnd->updateValueManagerTreeView();
+}
+
+SAMdiSubWindow *SAUI::createMdiSubWindow(QWidget *w, const QString &title)
+{
+    if(m_mainWnd)
+        return m_mainWnd->createMdiSubWindow(w,title);
+    return nullptr;
 }
 
 QWidget *SAUI::getMainWindowPtr()
@@ -145,12 +152,12 @@ QProgressBar *SAUI::getProgressStatusBar()
     return m_mainWnd->getProgressStatusBar();
 }
 
-QMdiSubWindow *SAUI::createFigureWindow(const QString &title)
+SAMdiSubWindow *SAUI::createFigureWindow(const QString &title)
 {
     return m_mainWnd->createFigureWindow(title);
 }
 
-QMdiSubWindow *SAUI::createFigureWindow(SAFigureWindow *fig, const QString &title)
+SAMdiSubWindow *SAUI::createFigureWindow(SAFigureWindow *fig, const QString &title)
 {
     return m_mainWnd->createFigureWindow(fig,title);
 }
@@ -257,7 +264,7 @@ QList<QwtPlotItem *> SAUI::selectPlotItems(SAChart2D *chart, const QSet<int> &fi
     {
         return res;
     }
-    CurveSelectDialog dlg(chart,getMainWindowPtr ());
+    SACurveSelectDialog dlg(chart,getMainWindowPtr ());
     dlg.setItemFilter(filter);
     if(QDialog::Accepted == dlg.exec())
     {

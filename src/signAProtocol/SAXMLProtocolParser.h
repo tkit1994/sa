@@ -2,6 +2,7 @@
 #define SAXMLPROTOCOLPARSER_H
 #include "SAProtocolGlobal.h"
 #include "SAAbstractProtocolParser.h"
+#include <memory>
 class SAXMLProtocolParserPrivate;
 
 /**
@@ -10,6 +11,9 @@ class SAXMLProtocolParserPrivate;
  * @code
  * <sa>
  *  <values>
+ *   <default-group>
+ *     <item type="int" name="value">1</item>
+ *   </default-group>
  *   <group name="test">
  *      <item name="a" type="int">1</item>
  *   </group>
@@ -36,7 +40,7 @@ class SAXMLProtocolParserPrivate;
  * 上诉输出结果为：
  *
  * @code
- * <sa>
+ * <sa type="xml" classid="" funid="">
  *  <values>
  *   <default-group>
  *     <item type="int" name="value">1</item>
@@ -45,10 +49,10 @@ class SAXMLProtocolParserPrivate;
  *     <item type="int" name="point-size">4</item>
  *     <item type="int" name="sequenceID">123</item>
  *     <item type="QVariantList" name="points">
- *        <item type="QPointF" name="">1;2</item>
- *        <item type="QPointF" name="">1;3</item>
- *        <item type="QPointF" name="">2;3</item>
- *        <item type="QPointF" name="">4;5</item>
+ *        <item type="QPointF">1;2</item>
+ *        <item type="QPointF">1;3</item>
+ *        <item type="QPointF">2;3</item>
+ *        <item type="QPointF">4;5</item>
  *     </item>
  *   </group>
  *  </values>
@@ -77,11 +81,12 @@ public:
     virtual int getClassID() const;
     //设置值
     virtual void setValue(const QString& groupName, const QString& keyName, const QVariant& var);
-    virtual void setValueInDefaultGroup(const QString& keyName, const QVariant& var);
-    // 复杂度O(1)
+    virtual void setValue(const QString& keyName, const QVariant& var);
+    // 复杂度O(1) 不含默认分组
     virtual QStringList getGroupNames() const;
     // 复杂度O(n)
     virtual QStringList getKeyNames(const QString& groupName) const;
+    QStringList getKeyNames() const;
     // 从文本转换
     virtual bool fromString(const QString& str);
     //转换为文本
@@ -90,18 +95,20 @@ public:
     virtual bool fromByteArray(const QByteArray& data);
     // 转换为bytearray
     virtual QByteArray toByteArray() const;
+    static QString defaultGroupName();
     // 检测是否存在分组
     virtual bool isHasGroup(const QString& groupName) const;
     // 检查在分组名下是否存在对应的键值 复杂度O(1)
     virtual bool isHasKey(const QString& groupName, const QString& keyName) const;
     // 获取键值对应的内容
     virtual QVariant getValue(const QString& groupName, const QString& keyName,const QVariant& defaultVal = QVariant()) const;
-    virtual QVariant getValueInDefaultGroup(const QString& keyName,const QVariant& defaultVal = QVariant()) const;
+    virtual QVariant getDefaultGroupValue(const QString& keyName,const QVariant& defaultVal = QVariant()) const;
 public:
     // 获取错误信息
     QString getErrorString() const;
 };
 
-
+typedef std::shared_ptr<SAXMLProtocolParser> SAXMLProtocolParserPtr;
+SA_PROTOCOL_EXPORT SAXMLProtocolParserPtr makeXMLProtocolParserPtr();
 
 #endif // SAXMLPROTOCOLPARSER_H

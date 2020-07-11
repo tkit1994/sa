@@ -7,6 +7,11 @@
 # 动态插件不需要加上CONFIG += plugin，只需编译出dll即可，放置在sa的plugin文件夹下
 # 对于动态plugin,需要有导出函数,dataImport对应SADataImportFactory.h,全局就此一个导出函??用户需要给其添加实??#
 #-------------------------------------------------
+
+message("------------插件--FunPlugin函数集合-------------------")
+message(Qt version: $$[QT_VERSION])
+message(Qt is installed in $$[QT_INSTALL_PREFIX])
+win32-msvc*:QMAKE_CXXFLAGS += /wd"4819" #忽略warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
 QT += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TEMPLATE      = lib
@@ -17,13 +22,9 @@ include($$PWD/../../3rdParty/qwt/qwt_set.pri)
 include($$PWD/../../signALib/signALib.pri)
 include($$PWD/../../signACoreFun/signACoreFun.pri)
 include($$PWD/../../signACommonUI/signACommonUIWith3thLib.pri)
-include($$[QT_INSTALL_PREFIX]/../Src/qttools/src/shared/qtpropertybrowser/qtpropertybrowser.pri)
-#sa chart support
-#include($$PWD/../../signAChart/signAChart.pri)
-
-#czy qt api support
-include($$PWD/../../czy/czy_math.pri)
-
+include($$PWD/../../3rdParty/qtpropertybrowser/propertybrowser.pri)
+include($$PWD/../../signAUtil/signAUtil.pri)
+include($$PWD/../../signAScience/signAScience.pri)
 DEFINES += SA_COMMON_PLUGIN_LIB_MAKE#创建插件必须添加此宏
 
 

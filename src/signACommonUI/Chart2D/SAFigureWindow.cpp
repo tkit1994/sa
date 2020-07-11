@@ -74,9 +74,10 @@ public:
 //=============================================================================
 
 SAFigureWindow::SAFigureWindow(QWidget *parent) :
-    QMainWindow(parent)
+    SAMainWindow(parent)
     ,d_ptr(new SAFigureWindowPrivate(this))
 {
+    askOnCloseEvent(false);
     d_ptr->setupUI();
     setFocusPolicy(Qt::ClickFocus);
     static int s_figure_count=0;
@@ -102,7 +103,7 @@ QList<QWidget*> SAFigureWindow::getWidgets() const
 ///
 SAChart2D *SAFigureWindow::create2DPlot()
 {
-    return create2DSubPlot(0.05,0.05,0.9,0.9);
+    return create2DSubPlot(0.05f,0.05f,0.9f,0.9f);
 }
 
 SAChart2D *SAFigureWindow::create2DSubPlot(float xPresent, float yPresent, float wPresent, float hPresent)

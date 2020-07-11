@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
 #endif
 #endif
     QApplication a(argc, argv);
+    QApplication::setAttribute(Qt::AA_EnableHighDpiScaling,true);
     qRegisterMetaType<QAbstractSocket::SocketError>("QAbstractSocket::SocketError");
     QCoreApplication::addLibraryPath(QCoreApplication::applicationDirPath() + QDir::separator() + "libs");
     qInstallMessageHandler(sa_log_out_put);
@@ -61,7 +62,7 @@ int main(int argc, char *argv[])
     //加载本地语言
     load_local_language();
     //启动服务程序
-//    start_serve_process(max_start_serve_retry_count);
+    start_serve_process(max_start_serve_retry_count);
     //样式设置
     MainWindow w;
     w.show();

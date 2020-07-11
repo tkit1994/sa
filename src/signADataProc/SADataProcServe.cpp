@@ -6,7 +6,6 @@
 #include <QLocalServer>
 #include <QThread>
 #include <QApplication>
-#include "SAPointSeriesStatisticProcess.h"
 #include "SAXMLTagDefined.h"
 #include <memory>
 
@@ -16,11 +15,12 @@
 #ifdef _DEBUG_OUTPUT
 #include <QElapsedTimer>
 #endif
-SADataProcServe::SADataProcServe(QObject *parent):SATCPAssignServe(parent)
+SADataProcServe::SADataProcServe(QObject *parent, int idealTimeSecond):SATcpServe(parent)
   ,m_pid(0)
   ,m_willBeQuit(false)
-  ,m_checkLiveTime(10000)//存活20s
+  ,m_checkLiveTime(idealTimeSecond)//存活20s
 {
+    connect(&m_liveChecker,&QTimer::timeout,this,&SADataProcServe::onCkeckLiveTimeout);
 }
 
 SADataProcServe::~SADataProcServe()
@@ -38,6 +38,12 @@ uint SADataProcServe::getPid() const
 void SADataProcServe::setPid(const uint &pid)
 {
     m_pid = pid;
+}
+
+
+void SADataProcServe::onCkeckLiveTimeout()
+{
+
 }
 
 

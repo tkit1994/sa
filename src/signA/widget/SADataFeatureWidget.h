@@ -15,27 +15,18 @@ class QwtPlotItem;
 class QMdiSubWindow;
 class QAbstractItemModel;
 class SAFigureWindow;
-class DataFeatureTreeModel;
+class SADataFeatureTreeModel;
 class SAChart2D;
 class SAFigureSetWidget;
-/// \def 使用多线程来进行数据特征的计算，否则使用多进程，
-/// 如果程序不希望使用多线程进行计算，把这个宏注释掉，会使用多进程进行计算
-//#define USE_THREAD_CALC_FEATURE
 
-//数据接收相关
-#ifdef USE_THREAD_CALC_FEATURE
-
-#else
-    #define USE_IPC_CALC_FEATURE //使用多进程进行计算
-    class QLocalServer;
-    class QLocalSocket;
-    class SALocalServeSocketOpt;
-#endif
 
 namespace Ui {
 class SADataFeatureWidget;
 }
 
+/**
+ * @brief 数据属性显示窗口
+ */
 class SADataFeatureWidget : public QWidget
 {
     Q_OBJECT
@@ -44,53 +35,60 @@ public:
     ~SADataFeatureWidget();
 public slots:
     //子窗口激活槽
-    void mdiSubWindowActived(QMdiSubWindow *arg1);
+    void mdiSubWindowActived(QMdiSubWindow *subwnd);
     //子窗口关闭槽
     void mdiSubWindowClosed(QMdiSubWindow *arg1);
 signals:
     //显示消息
     void showMessageInfo(const QString& info,SA::MeaasgeType messageType = SA::NormalMessage);
 private slots:
-
-    void on_treeView_clicked(const QModelIndex &index);
-
-    void on_toolButton_clearDataFeature_clicked();
-
+    //树形控件点击
+    void onTreeViewClicked(const QModelIndex &index);
+    //点击清除属性按钮
+    void onToolButtonClearDataFeatureClicked();
+    //图片隐藏触发的槽，隐藏绘图需要对显示的信息也隐藏
+    void onChartHide();
+    //绘图销毁触发的槽，绘图销毁，对数据进行销毁
+    void onChartDestroy();
+    //fig窗口销毁
+    void onFigureDestroy();
+    //心跳超时
+    void onHeartbeatCheckerTimerout();
+    //获取服务器的反馈
+    void onRec2DPointsDescribe(const SAProtocolHeader &header, SAXMLProtocolParserPtr res);
 private:
-    SAFigureWindow* getChartWidgetFromSubWindow(QMdiSubWindow* sub);
+    //对MdiSubWindow进行绑定
+    void bindMdiSubWindow(QMdiSubWindow *w);
+    //对已经绑定的MdiSubWindow进行解绑
+    void unbindMdiSubWindow(QMdiSubWindow *w);
+    //获取mdisubwindow的FigureWindow
+    SAFigureWindow* getFigureFromSubWindow(QMdiSubWindow* sub);
     //计算绘图窗口的dataFeature
-    void callCalcFigureWindowFeature(SAFigureWindow* figure);
-    //检测model是否需要重新计算datafeature
-    void checkModelItem(QAbstractItemModel* baseModel,QMdiSubWindow *subWndPtr);
+    void calcFigureFeature(QMdiSubWindow *subwnd, SAFigureWindow* figure, SADataFeatureTreeModel *model);
 private:
     //计算一个plot item
-    void calcPlotItemFeature(const QwtPlotItem* plotitem,const QMdiSubWindow *arg1,const SAChart2D* arg2);
-    //定时心跳检测时间到达触发槽
-    Q_SLOT void onHeartbeatCheckerTimerout();
+    void calcPlotItemFeature(QMdiSubWindow *subwnd,SAChart2D *chart,SADataFeatureTreeModel* model,QwtPlotItem *plotitem,int key);
+public://数据接收相关的类型
+    class _DataInfo{
+    public:
+        _DataInfo();
+        _DataInfo(QwtPlotItem* plotitem, QMdiSubWindow *midwidget, SAChart2D *chartptr);
+        QwtPlotItem *item;
+        QMdiSubWindow *midwidget;
+        SAChart2D * chart;
+        bool operator <(const _DataInfo& other);
+    };
+
 private:
     Ui::SADataFeatureWidget *ui;
     QMdiSubWindow* m_lastActiveSubWindow;///< 记录最后激活的子窗口
-    QMap<QMdiSubWindow*,QAbstractItemModel*> m_subWindowToDataInfo;///< 记录子窗口对应的数据属性表上显示的model
-private://数据接收相关的类型
+    QMap<QMdiSubWindow*,SADataFeatureTreeModel*> m_mdiToModel;///< 子窗口对应的数据模型
+    QMap<int,_DataInfo> m_keyToDatainfo;
+    //QMap<QMdiSubWindow*,_DataInfo> m_subWindowToDataInfo;///< 记录子窗口对应的数据属性表上显示的model
     SADataClient m_client;
-    class TmpStru{
-    public:
-        TmpStru(QwtPlotItem *p1,QMdiSubWindow *p2,SAChart2D *p3)
-            :plotitem(p1),mdiSubWnd(p2),chart2d(p3)
-        {
 
-        }
-        TmpStru()
-            :plotitem(nullptr),mdiSubWnd(nullptr),chart2d(nullptr)
-        {
-
-        }
-        QwtPlotItem *plotitem;
-        QMdiSubWindow *mdiSubWnd;
-        SAChart2D *chart2d;
-    };
-    uint m_wndPtrKey;
-    QHash<uint,TmpStru> m_key2wndPtr;
 };
+
+
 
 #endif // DATAFEATUREWIDGET_H

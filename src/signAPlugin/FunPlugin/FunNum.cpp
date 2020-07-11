@@ -14,6 +14,7 @@
 #include "SAChart.h"
 #include "SAVectorInterval.h"
 #include "SAGUIGlobalConfig.h"
+#include "SAMdiSubWindow.h"
 #include "ui_opt.h"
 #include <QMdiSubWindow>
 #include <QTextStream>
@@ -149,7 +150,7 @@ void hist(SAUIInterface *ui)
     }
     const QString idHistCount = "histCount";
     const QString idIsPlot = "isPlot";
-    SAPropertySetDialog dlg(ui->getMainWindowPtr(),static_cast<SAPropertySetDialog::BrowserType>(SAGUIGlobalConfig::getDefaultPropertySetDialogType()));
+    SAPropertySetDialog dlg(ui->getMainWindowPtr(),SAPropertySetDialog::GroupBoxType);
     dlg.appendGroup(TR("property set"));
     dlg.appendIntProperty(idHistCount,TR("hist count")
                           ,1,std::numeric_limits<int>::max()
@@ -172,7 +173,7 @@ void hist(SAUIInterface *ui)
     saValueManager->addData(res);
     if(dlg.getDataByID<bool>(idIsPlot))
     {
-        QMdiSubWindow* sub = ui->createFigureWindow();
+        SAMdiSubWindow* sub = ui->createFigureWindow();
         SAFigureWindow* fig = ui->getFigureWidgetFromMdiSubWindow(sub);
         SAChart2D* chart = fig->create2DPlot();
         if(chart)
@@ -191,7 +192,7 @@ void diff(SAUIInterface *ui)
     {
         return;
     }
-    SAPropertySetDialog dlg(ui->getMainWindowPtr(),static_cast<SAPropertySetDialog::BrowserType>(SAGUIGlobalConfig::getDefaultPropertySetDialogType()));
+    SAPropertySetDialog dlg(ui->getMainWindowPtr(),SAPropertySetDialog::GroupBoxType);
     dlg.appendGroup(TR("property set"));
     auto tmp = dlg.appendIntProperty(TR("diff count")
                              ,1,std::numeric_limits<int>::max()

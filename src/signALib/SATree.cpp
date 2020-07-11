@@ -8,7 +8,10 @@
 #include <memory>
 
 QJsonObject write_item_to_json(SAItem* item);
+QJsonObject write_property_to_json(QMap<QString,QVariant>* prop);
 bool read_item_from_json(const QJsonObject &json, SAItem* item);
+
+
 class SATreePrivate
 {
     SA_IMPL_PUBLIC(SATree)
@@ -18,6 +21,7 @@ public:
     {
     }
     QList<SAItem*> mRootNodes;///< 记录所有根节点
+    QMap<QString,QVariant> m_property;///< 记录tree的属性
 };
 
 
@@ -62,6 +66,7 @@ void SATree::clear()
         delete d_ptr->mRootNodes[i];
     }
     d_ptr->mRootNodes.clear();
+    d_ptr->m_property.clear();//属性清除
 }
 /**
  * @brief 获取子节点的个数
@@ -147,6 +152,54 @@ int SATree::indexOfItem(const SAItem *item) const
     return d_ptr->mRootNodes.indexOf(const_cast<SAItem *>(item));
 }
 
+/**
+ * @brief 设置属性
+ * @param name 属性名
+ * @param var 属性值
+ */
+void SATree::setProperty(const QString &name, const QVariant &var)
+{
+    d_ptr->m_property.insert(name,var);
+}
+
+/**
+ * @brief 获取属性
+ * @param name 属性名
+ * @param defaultVal 属性默认值
+ * @return 如果有返回对应属性值，如果没有返回默认值
+ */
+QVariant SATree::getProperty(const QString &name, const QVariant &defaultVal) const
+{
+    return d_ptr->m_property.value(name,defaultVal);
+}
+
+/**
+ * @brief 移除属性
+ * @param name 属性名
+ */
+void SATree::removeProperty(const QString &name)
+{
+    d_ptr->m_property.remove(name);
+}
+
+/**
+ * @brief 获取所有属性名
+ * @return 属性名列表
+ */
+QList<QString> SATree::getPropertyNames() const
+{
+    return d_ptr->m_property.keys();
+}
+
+/**
+ * @brief 获取所有属性
+ * @return
+ */
+QMap<QString, QVariant> SATree::getPropertys() const
+{
+    return d_ptr->m_property;
+}
+
 
 
 QDebug &operator<<(QDebug &dbg, const SATree &tree)
@@ -175,7 +228,16 @@ QString toJson(const SATree *tree)
         SAItem* item = items[i];
         mainJTree.append(write_item_to_json(item));
     }
-    QJsonDocument json(mainJTree);
+    QJsonObject propobj;
+    QList<QString> props = tree->getPropertyNames();
+    for(const QString& k : props)
+    {
+        propobj.insert(k,QJsonValue::fromVariant(tree->getProperty(k)));
+    }
+    QJsonObject mainobj;
+    mainobj.insert("prop",propobj);
+    mainobj.insert("item",mainJTree);
+    QJsonDocument json(mainobj);
     return json.toJson();
 }
 
@@ -199,7 +261,7 @@ QJsonObject write_item_to_json(SAItem* item)
         {
             int id;
             QVariant var;
-            item->getProperty(i,id,var);
+            item->property(i,id,var);
             propObj.insert(QString::number(id),QJsonValue::fromVariant(var));
         }
         itemObj.insert("porperty",propObj);
@@ -216,6 +278,19 @@ QJsonObject write_item_to_json(SAItem* item)
         itemObj.insert("childItems",jArrVal);
     }
     return itemObj;
+}
+
+QJsonObject write_property_to_json(QMap<QString,QVariant>* prop)
+{
+    QJsonObject objprop;
+    for(auto i=prop->begin();i!=prop->end();++i)
+    {
+        if(i.value().isValid())
+        {
+            objprop[i.key()] = QJsonValue::fromVariant(i.value());
+        }
+    }
+    return objprop;
 }
 
 
@@ -262,7 +337,7 @@ bool read_item_from_json(const QJsonObject &json, SAItem* item)
             QJsonArray jArrVal = i.value().toArray();
             for(auto i=jArrVal.begin();i!=jArrVal.end();++i)
             {
-                std::unique_ptr<SAItem> childitem = std::make_unique<SAItem>();
+                std::unique_ptr<SAItem> childitem(new SAItem());
                 if(read_item_from_json((*i).toObject(),childitem.get()))
                 {
                     item->appendChild(childitem.release());
@@ -283,19 +358,30 @@ bool fromJson(const QString &json, SATree *tree)
 {
     QJsonParseError error;
     QJsonDocument jsonDocument = QJsonDocument::fromJson(json.toUtf8(), &error);
-    if(!jsonDocument.isArray())
+    if(!jsonDocument.isObject())
     {
         return false;
     }
-    QJsonArray jsonArr = jsonDocument.array();
+    QJsonObject mainobj = jsonDocument.object();
+    QJsonObject propobj = mainobj.value("prop").toObject();
+    QJsonArray jsonArr = mainobj.value("item").toArray();
+
+    // 解析属性
+    for(auto i = propobj.begin();i != propobj.end(); ++i)
+    {
+        tree->setProperty(i.key(),i.value().toVariant());
+    }
+
+    //解析值
     const auto size = jsonArr.size();
     for(int i=0;i<size;++i)
     {
-        std::unique_ptr<SAItem> item = std::make_unique<SAItem>();
+        std::unique_ptr<SAItem> item(new SAItem());
         QJsonValue v = jsonArr[i];
         if(read_item_from_json(v.toObject(),item.get()))
         {
             tree->appendItem(item.release());
         }
     }
+    return true;
 }

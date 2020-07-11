@@ -5,15 +5,27 @@
 #include <QIcon>
 #include <QVariant>
 class SAItemPrivate;
+class SATree;
 ///
 /// \ingroup SALib
 /// \brief 基本树形结构的条目，是SAAbstractData的基类，提供了名称和图标以及父子关系管理功能
+/// SAItem可用SATree进行管理，形成树形结构
 ///
 class SALIB_EXPORT SAItem
 {
     SA_IMPL(SAItem)
     friend class SATree;
 public:
+    /**
+     * @brief 预设好的一些属性角色
+     */
+    enum Role{
+        RoleNone = 0,
+        RoleName, ///< 名字
+        RoleIcon, ///< 图标
+        RoleValue, ///< 值
+        UserDefine = 1000 ///< 用户自定义
+    };
     SAItem(SAItem* parentItem = nullptr);
     SAItem(const QString & text);
     SAItem(const QIcon & icon, const QString & text);
@@ -26,18 +38,20 @@ public:
     QString getName() const;
     //图标
     void setIcon(const QIcon& icon);
-    const QIcon& getIcon() const;
+    QIcon getIcon() const;
     //id
     int getID() const;
     //扩展数据操作相关
     void setProperty(int roleID,const QVariant& var);
-    bool isHaveProperty(int id) const;
+    bool isHaveProperty(int roleID) const;
     int getPropertyCount() const;
 
     //扩展数据的获取操作
-    const QVariant& getProperty(int id) const;
-    QVariant& getProperty(int id);
-    void getProperty(int index,int& id,QVariant& var) const;
+    const QVariant& property(int id) const;
+    QVariant& property(int id);
+    void property(int index,int& id,QVariant& var) const;
+    QVariant getProperty(int id,const QVariant& defaultvar = QVariant()) const;
+    QMap<int,QVariant> getPropertys() const;
     //父子条目操作相关
     int childItemCount() const;
     //索引子条目

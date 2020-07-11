@@ -53,16 +53,10 @@ public:
      * @note 斜杠是分组和键值的分割符，因此键值不应该存在斜杠，否则会有无法预料的结果
      */
     virtual void setValue(const QString& groupName, const QString& keyName, const QVariant& var) = 0;
-    /**
-     * @brief 设置键值
-     * @param keyName 键值名
-     * @param var 值
-     * @note 没有指定分组，会写入默认分组中
-     */
-    virtual void setValueInDefaultGroup(const QString& keyName, const QVariant& var) = 0;
+    virtual void setValue(const QString& keyName, const QVariant& var) = 0;
     /**
      * @brief 获取所有目录关键字
-     * @return
+     * @return 包含默认分组
      */
     virtual QStringList getGroupNames() const = 0;
     /**
@@ -109,7 +103,7 @@ public:
      * @param defaultVal 默认值（如果键值不存在，返回默认值）
      * @return
      */
-    virtual QVariant getValueInDefaultGroup(const QString& keyName,const QVariant& defaultVal = QVariant()) const = 0;
+    virtual QVariant getDefaultGroupValue(const QString& keyName,const QVariant& defaultVal = QVariant()) const = 0;
 
 };
 
