@@ -22,17 +22,11 @@ QT += core gui
 QT += concurrent
 QT += network
 QT += xml
-
+include(../sa_common.pri)
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-
+DESTDIR = $$SA_BIN_DIR
 OTHER_FILES += readme.md
-
-CONFIG(debug, debug|release){
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_debug/
-}else {
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_release/
-}
 
 TARGET = signADataProc
 TEMPLATE = app
@@ -43,14 +37,14 @@ INCLUDEPATH += $$PWD
 SOURCES += main.cpp \
     SADataProcFunctions.cpp \
     SADataProcServe.cpp \
-    SADataProcSession.cpp \
+    SADataProcSocket.cpp \
     SAMiniDump.cpp \
     runnable/SADataStatisticRunable.cpp
 
 HEADERS += \
     SADataProcFunctions.h \
     SADataProcServe.h \
-    SADataProcSession.h \
+    SADataProcSocket.h \
     SAMiniDump.h \
     runnable/SADataStatisticRunable.h
     

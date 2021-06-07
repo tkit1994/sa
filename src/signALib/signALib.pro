@@ -15,22 +15,22 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = signALib
 TEMPLATE = lib
 
-CONFIG(debug, debug|release){
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_debug/libs
-}else {
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_release/libs
-}
+include(../sa_common.pri)
+DESTDIR = $$SA_LIBDIR
 
 CONFIG += c++11
 
 HEADERS += \
-    /../global/SAGlobals.h \
+    $$PWD/../global/SAGlobals.h \
     SAData.h \
     SADataPackage.h \
     SAItem.h \
     SALibGlobal.h \
+    SALineGradientColorList.h \
+    SAOrderMap.h \
     SAPoint.h \
     SATable.h \
+    SAThreadPool.h \
     SAValueManager.h \
     SAValueManagerModel.h \
     SARandColorMaker.h \
@@ -40,7 +40,6 @@ HEADERS += \
     SATextReadWriter.h \
     SADataHeader.h \
     SALibResourDefine.h \
-    SADataFeatureItem.h \
     SAValueManagerMimeData.h \
     SAValueManagerListModel.h \
     SAHashTable.h \
@@ -52,7 +51,9 @@ SOURCES += \
     SAData.cpp \
     SADataPackage.cpp \
     SAItem.cpp \
+    SALineGradientColorList.cpp \
     SAPoint.cpp \
+    SAThreadPool.cpp \
     SAValueManager.cpp \
     SAValueManagerModel.cpp \
     SARandColorMaker.cpp \
@@ -60,7 +61,6 @@ SOURCES += \
     SALog.cpp \
     SATextReadWriter.cpp \
     SADataHeader.cpp \
-    SADataFeatureItem.cpp \
     SAValueManagerMimeData.cpp \
     SAValueManagerListModel.cpp \
     SATree.cpp \
@@ -68,6 +68,7 @@ SOURCES += \
 
 #sa protocol support
 include($$PWD/../signAProtocol/signAProtocol.pri)
+include($$PWD/../signAUtil/signAUtil.pri)
 include($$PWD/Private/Private.pri)
 include($$PWD/SABaseValueType/SABaseValueType.pri)
 include($$PWD/../3rdParty/qwt/qwt_set.pri)

@@ -15,11 +15,8 @@ TARGET = signAChart
 TEMPLATE = lib
 CONFIG += dll
 
-CONFIG(debug, debug|release){
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_debug/libs
-}else {
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_release/libs
-}
+include(../sa_common.pri)
+DESTDIR = $$SA_LIBDIR
 
 CONFIG += c++11
 
@@ -33,6 +30,7 @@ DEFINES += SA_CHART_MAKE #定义此变量后将会构建DEFINES += USE_QWT#定�
 
 HEADERS += \
     SAChartGlobals.h \
+    SAPlotCanvas.h \
     SASeries.h \
     QwtPlotItemDataModel.h \
     QwtPlotItemTreeModel.h \
@@ -58,6 +56,7 @@ SOURCES += \
     QwtPlotItemTreeModel.cpp \
     SAChart3D.cpp \
     SAMarkSymbol.cpp \
+    SAPlotCanvas.cpp \
     SAPlotMarker.cpp \
     SAXYDataTracker.cpp \
     SAYDataTracker.cpp \

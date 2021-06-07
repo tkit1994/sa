@@ -13,13 +13,10 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = signACommonUI
 TEMPLATE = lib
 CONFIG += dll
-CONFIG(debug, debug|release){
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_debug/libs
-    DEPENDPATH += $$PWD/../bin_qt$$[QT_VERSION]_debug/libs
-}else {
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_release/libs
-    DEPENDPATH += $$PWD/../bin_qt$$[QT_VERSION]_release/libs
-}
+include(../sa_common.pri)
+DESTDIR = $$SA_LIBDIR
+DEPENDPATH += $$SA_LIBDIR
+
 
 CONFIG += c++11
 DEFINES += SA_COMMON_UI_MAKE #make dll
@@ -35,7 +32,6 @@ include($$PWD/../signAProtocol/signAProtocol.pri)
 #sa chart support
 include($$PWD/../signAChart/signAChart.pri)
 #propertybrowser
-#include($$PWD/../3rdParty/qtpropertybrowser/src/qtpropertybrowser.pri)#propertybrowser support
 include($$PWD/../3rdParty/qtpropertybrowser/propertyBrowser.pri)
 #QWT
 include($$PWD/../3rdParty/qwt/qwt_set.pri)
@@ -54,6 +50,7 @@ include($$PWD/Chart2D/Chart2D.pri)
 
 HEADERS += \
     SACommonUIGlobal.h \
+    SAFigureWindowChartTableModel.h \
     SAQwtSymbolComboBox.h \
     SACollapsibleGroupBox.h \
     SAVCollapsibleGroupBox.h \
@@ -82,9 +79,11 @@ HEADERS += \
     SAPlotDataModel.h \
     SAGUIGlobalConfig.h \
     SAFigureSetWidget.h \
+    SAChartSetWidget.h \
     SAMainWindow.h
 
 SOURCES += \
+    SAFigureWindowChartTableModel.cpp \
     SAUIReflection.cpp \
     SAQwtSymbolComboBox.cpp \
     SACollapsibleGroupBox.cpp \
@@ -117,6 +116,7 @@ SOURCES += \
     SAValueTableOptInsertCommand_impl.cpp \
     SAGUIGlobalConfig.cpp \
     SAFigureSetWidget.cpp \
+    SAChartSetWidget.cpp \
     SAMainWindow.cpp
 
 FORMS += \
@@ -135,5 +135,4 @@ include($$PWD/Private/Private.pri)
 include($$PWD/figureSet/figureSet.pri)
 RESOURCES += \
     icon.qrc
-
 

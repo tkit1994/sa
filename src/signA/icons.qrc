@@ -76,6 +76,23 @@
         <file>icons/createVariantTableValue.png</file>
         <file>icons/createDouble1DimValue.png</file>
         <file>icons/subplotEdit.png</file>
+        <file>icons/colormap.svg</file>
+        <file>icons/legend.svg</file>
+        <file>icons/grid.svg</file>
+        <file>icons/Marker.svg</file>
+        <file>icons/SpectroChart.svg</file>
+        <file>icons/IntervalChart.svg</file>
+        <file>icons/multiBarChart.svg</file>
+        <file>icons/shapeChart.svg</file>
+        <file>icons/svgChart.svg</file>
+        <file>icons/TextLabel.svg</file>
+        <file>icons/zoneItem.svg</file>
+        <file>icons/UserDefineItem.svg</file>
+        <file>icons/UnknowItem.svg</file>
+        <file>icons/expandAll.svg</file>
+        <file>icons/figureSet.svg</file>
+        <file>icons/refresh.svg</file>
+        <file>icons/ribbonStyle.png</file>
     </qresource>
     <qresource prefix="/logo">
         <file>logo.png</file>
@@ -97,5 +114,22 @@
     </qresource>
     <qresource prefix="/windowIcons">
         <file>icons/windowIcon/figureWindow.svg</file>
+    </qresource>
+    <qresource prefix="/dataFeatureTree">
+        <file>icons/peakpeak.svg</file>
+        <file>icons/mid.svg</file>
+        <file>icons/min.svg</file>
+        <file>icons/max.svg</file>
+        <file>icons/kurtosis.svg</file>
+        <file>icons/mean.svg</file>
+        <file>icons/skewness.svg</file>
+        <file>icons/var.svg</file>
+        <file>icons/sum.svg</file>
+        <file>icons/std.svg</file>
+        <file>icons/lows.svg</file>
+        <file>icons/tops.svg</file>
+        <file>icons/minPoint.svg</file>
+        <file>icons/maxPoint.svg</file>
+        <file>icons/midPoint.svg</file>
     </qresource>
 </RCC>

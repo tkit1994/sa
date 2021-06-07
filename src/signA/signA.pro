@@ -7,11 +7,10 @@ message("--------------SA---------------------------")
 message(Qt version: $$[QT_VERSION])
 message(Qt is installed in $$[QT_INSTALL_PREFIX])
 
-CONFIG(debug, debug|release){
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_debug
-}else {
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_release
-}
+include(../sa_common.pri)
+DESTDIR = $$SA_BIN_DIR
+
+message(SA will build in $$DESTDIR)
 
 QT += core gui
 QT += sql
@@ -29,6 +28,7 @@ INCLUDEPATH += $$PWD
 #include($$PWD/3rdparty/qwtplot3d/qwt3D_set.pri)#the qwt support
 
 SOURCES += main.cpp\
+    SAIconHelper.cpp \
     mainwindow.cpp \
     progressStateWidget.cpp \
     AboutDialog.cpp \
@@ -46,6 +46,7 @@ SOURCES += main.cpp\
 
 HEADERS  += mainwindow.h \
     DebugInfo.h \
+    SAIconHelper.h \
     progressStateWidget.h \
     AboutDialog.h \
     SAThemeManager.h \
@@ -81,8 +82,6 @@ RESOURCES += \
     icons.qrc \
     theme.qrc
 RC_FILE += logo.rc
-
-#include($$[QT_INSTALL_PREFIX]/../Src/qttools/src/shared/qtpropertybrowser/qtpropertybrowser.pri)
 
 #3thparty
 #{

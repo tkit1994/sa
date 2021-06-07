@@ -28,13 +28,30 @@ class QwtPlotCurve;
 class SA_COMMON_UI_EXPORT SAFigureCreateSubWidgetCommand : public SAFigureOptCommand
 {
 public:
-    SAFigureCreateSubWidgetCommand(SAFigureWindow* fig,QWidget* w,float xPresent, float yPresent, float wPresent, float hPresent,const QString &cmdName,QUndoCommand *parent = Q_NULLPTR);
+    SAFigureCreateSubWidgetCommand(SAFigureWindow *fig, QWidget *w, float xPresent, float yPresent, float wPresent, float hPresent, const QString& cmdName, QUndoCommand *parent = Q_NULLPTR);
     ~SAFigureCreateSubWidgetCommand();
     virtual void redo();
     virtual void undo();
+
 private:
-    QWidget* m_widget;
+    QWidget *m_widget;
     bool m_isNeedToDelete;///< 记录是否是此命令对它进行隐藏
+};
+
+///
+/// \brief figure窗体背景改变
+///
+class SA_COMMON_UI_EXPORT SAFigureBackgroundCommand : public SAFigureOptCommand
+{
+public:
+    SAFigureBackgroundCommand(SAFigureWindow *fig, const QBrush& newback, const QString& cmdName, QUndoCommand *parent = Q_NULLPTR);
+    ~SAFigureBackgroundCommand();
+    virtual void redo();
+    virtual void undo();
+
+private:
+    QBrush m_newbrush;
+    QBrush m_oldbrush;
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -44,13 +61,16 @@ private:
 class SA_COMMON_UI_EXPORT SAFigureSubChartResizeCommand : public SAFigureOptCommand
 {
 public:
-    SAFigureSubChartResizeCommand(SAFigureWindow* fig,QWidget* w,const QRect& size,const QString &cmdName,QUndoCommand *parent = Q_NULLPTR);
-    SAFigureSubChartResizeCommand(SAFigureWindow* fig,QWidget* w,const QRect& oldSize,const QRect& newSize,const QString &cmdName,QUndoCommand *parent = Q_NULLPTR);
+    SAFigureSubChartResizeCommand(SAFigureWindow *fig, QWidget *w, const QRect& size, const QString& cmdName, QUndoCommand *parent = Q_NULLPTR);
+    SAFigureSubChartResizeCommand(SAFigureWindow *fig, QWidget *w, const QRect& oldSize, const QRect& newSize, const QString& cmdName, QUndoCommand *parent = Q_NULLPTR);
+    SAFigureSubChartResizeCommand(SAFigureWindow *fig, QWidget *w, const QRectF& posPercent, const QString& cmdName, QUndoCommand *parent = Q_NULLPTR);
+
     ~SAFigureSubChartResizeCommand();
     virtual void redo();
     virtual void undo();
+
 private:
-    QWidget* m_widget;
+    QWidget *m_widget;
     QRect m_newSize;
     QRect m_oldSize;
 };
@@ -62,12 +82,13 @@ private:
 class SA_COMMON_UI_EXPORT SAFigureChartItemAddCommand : public SAFigureOptCommand
 {
 public:
-    SAFigureChartItemAddCommand(SAChart2D* chart,QwtPlotItem *ser,const QString &cmdName,QUndoCommand *parent = Q_NULLPTR);
+    SAFigureChartItemAddCommand(SAChart2D *chart, QwtPlotItem *ser, const QString& cmdName, QUndoCommand *parent = Q_NULLPTR);
     ~SAFigureChartItemAddCommand();
     virtual void redo();
     virtual void undo();
+
 private:
-    QwtPlotItem* m_item;
+    QwtPlotItem *m_item;
 };
 ///////////////////////////////////////////////////////////////////////
 ///
@@ -76,12 +97,13 @@ private:
 class SA_COMMON_UI_EXPORT SAFigureChartItemListAddCommand : public SAFigureOptCommand
 {
 public:
-    SAFigureChartItemListAddCommand(SAChart2D* chart,const QList<QwtPlotItem*>& itemList,const QString &cmdName,QUndoCommand *parent = Q_NULLPTR);
+    SAFigureChartItemListAddCommand(SAChart2D *chart, const QList<QwtPlotItem *>& itemList, const QString& cmdName, QUndoCommand *parent = Q_NULLPTR);
     ~SAFigureChartItemListAddCommand();
     virtual void redo();
     virtual void undo();
+
 private:
-    QList<QwtPlotItem*> m_itemList;
+    QList<QwtPlotItem *> m_itemList;
 };
 ///////////////////////////////////////////////////////////////////////
 ///
@@ -90,12 +112,13 @@ private:
 class SA_COMMON_UI_EXPORT SAFigureChartItemDeleteCommand : public SAFigureOptCommand
 {
 public:
-    SAFigureChartItemDeleteCommand(SAChart2D* chart, QwtPlotItem *item, const QString &cmdName, QUndoCommand *parent = Q_NULLPTR);
+    SAFigureChartItemDeleteCommand(SAChart2D *chart, QwtPlotItem *item, const QString& cmdName, QUndoCommand *parent = Q_NULLPTR);
     ~SAFigureChartItemDeleteCommand();
     virtual void redo();
     virtual void undo();
+
 private:
-    QwtPlotItem* m_item;
+    QwtPlotItem *m_item;
 };
 ///////////////////////////////////////////////////////////////////////
 ///
@@ -104,10 +127,11 @@ private:
 class SA_COMMON_UI_EXPORT SAFigureChartSelectionRegionAddCommand : public SAFigureOptCommand
 {
 public:
-    SAFigureChartSelectionRegionAddCommand(SAChart2D* chart,const QPainterPath& newRegion,const QString &cmdName, QUndoCommand *parent = Q_NULLPTR);
-    SAFigureChartSelectionRegionAddCommand(SAChart2D* chart,const QPainterPath& oldRegion,const QPainterPath& newRegion,const QString &cmdName, QUndoCommand *parent = Q_NULLPTR);
+    SAFigureChartSelectionRegionAddCommand(SAChart2D *chart, const QPainterPath& newRegion, const QString& cmdName, QUndoCommand *parent = Q_NULLPTR);
+    SAFigureChartSelectionRegionAddCommand(SAChart2D *chart, const QPainterPath& oldRegion, const QPainterPath& newRegion, const QString& cmdName, QUndoCommand *parent = Q_NULLPTR);
     virtual void redo();
     virtual void undo();
+
 private:
     QPainterPath m_newPainterPath;
     QPainterPath m_oldPainterPath;
@@ -124,29 +148,28 @@ class SAFigureRemoveSeriesDatasInRangCommandPrivate;
 class SA_COMMON_UI_EXPORT SAFigureRemoveSeriesDatasInRangCommand : public SAFigureOptCommand
 {
 public:
-    SAFigureRemoveSeriesDatasInRangCommand(SAChart2D* chart
-                                            , QwtPlotItem* item
-                                            , const QPainterPath& selectRange
-                                            , const QString &cmdName
-                                            , QUndoCommand *parent = Q_NULLPTR);
+    SAFigureRemoveSeriesDatasInRangCommand(SAChart2D *chart
+        , QwtPlotItem *item
+        , const QPainterPath& selectRange
+        , const QString& cmdName
+        , QUndoCommand *parent = Q_NULLPTR);
     virtual ~SAFigureRemoveSeriesDatasInRangCommand();
     virtual void redo();
     virtual void undo();
     bool isValid() const;
+
 private:
-    SAFigureRemoveSeriesDatasInRangCommandPrivate* d_ptr;
+    SAFigureRemoveSeriesDatasInRangCommandPrivate *d_ptr;
 };
-
-
 
 
 
 //==============================================
 //把QwtSeriesStore的值按索引提取
-template<typename T,typename IteIndex,typename IteData>
-void copyInRangeData(IteIndex beginIndex,IteIndex endIndex,const QwtSeriesStore<T>* curve,IteData beginData)
+template<typename T, typename IteIndex, typename IteData>
+void copyInRangeData(IteIndex beginIndex, IteIndex endIndex, const QwtSeriesStore<T> *curve, IteData beginData)
 {
-    while(beginIndex != endIndex)
+    while (beginIndex != endIndex)
     {
         *beginData = curve->sample(*beginIndex);
         ++beginData;

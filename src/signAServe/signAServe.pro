@@ -15,42 +15,34 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = signAServe
 TEMPLATE = lib
 
-CONFIG(debug, debug|release){
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_debug/libs
-}else {
-    DESTDIR = $$PWD/../bin_qt$$[QT_VERSION]_release/libs
-}
+include(../sa_common.pri)
+DESTDIR = $$SA_LIBDIR
+
 DEFINES += SASERVE_MAKE \
            SA_SERVE_DEBUG_PRINT
 
 HEADERS += \
-    /../global/SAGlobals.h \
+    $$PWD/../global/SAGlobals.h \
     SAServeGlobal.h \
     SAAbstractServe.h \
-    3rdParty/CRC.h \
-    SASession.h \
+    SATcpDataProcessSocket.h \
     SATcpSocket.h \
     SATcpServe.h \
     SAServeShareMemory.h \
     SATcpClient.h \
     SAServerDefine.h \
-    SATcpDataProcessClient.h \
-    SAServeHandleFun.h \
-    SATcpThreadSocket.h \
-    ../global/SAGlobals.h
+    SAServeHandleFun.h
 
 
 
 SOURCES += \
     SAAbstractServe.cpp \
-    SASession.cpp \
+    SATcpDataProcessSocket.cpp \
     SATcpSocket.cpp \
     SATcpServe.cpp \
     SAServeShareMemory.cpp \
     SATcpClient.cpp \
-    SATcpDataProcessClient.cpp \
-    SAServeHandleFun.cpp \
-    SATcpThreadSocket.cpp
+    SAServeHandleFun.cpp
 
 #sa lib
 include($$PWD/../signALib/signALib.pri)

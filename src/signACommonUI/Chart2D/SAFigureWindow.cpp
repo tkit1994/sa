@@ -10,6 +10,7 @@
 #include <QScopedPointer>
 #include <QChildEvent>
 #include <QCursor>
+#include <QPainter>
 //sa chart
 #include "SAChart2D.h"
 #include "SAQwtSerialize.h"
@@ -22,19 +23,19 @@
 #include "SAFigureOptCommands.h"
 #include "SAFigureContainer.h"
 #include "SAFigureChartRubberbandEditOverlay.h"
-#define GET_CHART_PTR \
-SAChart2D* chart = current2DPlot();\
-if(nullptr == chart)\
-{\
-    return nullptr;\
-}
+#define GET_CHART_PTR			    \
+    SAChart2D *chart = current2DPlot(); \
+    if (nullptr == chart)		    \
+    {				    \
+        return (nullptr);	    \
+    }
 
-#define GET_CHART_PTR_RETURN_VOID \
-SAChart2D* chart = current2DPlot();\
-if(nullptr == chart)\
-{\
-    return;\
-}
+#define GET_CHART_PTR_RETURN_VOID	    \
+    SAChart2D *chart = current2DPlot(); \
+    if (nullptr == chart)		    \
+    {				    \
+        return;			    \
+    }
 
 
 
@@ -44,15 +45,17 @@ class SAFigureWindowPrivate
 public:
     SAFigureContainer *centralwidget;
     SAChart2D *currentPlot;
-    SAFigureChartRubberbandEditOverlay* chartRubberbandEditor;///< 编辑模式
+    SAFigureChartRubberbandEditOverlay *chartRubberbandEditor;      ///< 编辑模式
     QUndoStack redoUndoStack;
-    SAFigureWindowPrivate(SAFigureWindow* p):q_ptr(p)
-      ,centralwidget(nullptr)
-      ,currentPlot(nullptr)
-      ,chartRubberbandEditor(nullptr)
-    {
+    QBrush backgroundBrush;                                         ///< 背景
 
+    SAFigureWindowPrivate(SAFigureWindow *p) : q_ptr(p)
+        , centralwidget(nullptr)
+        , currentPlot(nullptr)
+        , chartRubberbandEditor(nullptr)
+    {
     }
+
 
     void setupUI()
     {
@@ -60,10 +63,10 @@ public:
         centralwidget->setObjectName(QStringLiteral("centralwidget"));
         q_ptr->setCentralWidget(centralwidget);
         q_ptr->setAcceptDrops(true);
-        q_ptr->setAutoFillBackground(true);
-        q_ptr->setBackgroundColor(QColor(255,255,255));
+        q_ptr->setBackgroundColor(QColor(255, 255, 255));
         q_ptr->setWindowIcon(QIcon(":/icon/icons/figureWindow.png"));
     }
+
 
     void retranslateUi()
     {
@@ -75,27 +78,31 @@ public:
 
 SAFigureWindow::SAFigureWindow(QWidget *parent) :
     SAMainWindow(parent)
-    ,d_ptr(new SAFigureWindowPrivate(this))
+    , d_ptr(new SAFigureWindowPrivate(this))
 {
     askOnCloseEvent(false);
     d_ptr->setupUI();
     setFocusPolicy(Qt::ClickFocus);
-    static int s_figure_count=0;
+    static int s_figure_count = 0;
+
     ++s_figure_count;
     setWindowTitle(QString("figure-%1").arg(s_figure_count));
     setMinimumWidth(100);
     setMinimumHeight(50);
 }
 
+
 SAFigureWindow::~SAFigureWindow()
 {
     //qDebug() << "SAFigureWindow destroy";
 }
 
-QList<QWidget*> SAFigureWindow::getWidgets() const
+
+QList<QWidget *> SAFigureWindow::getWidgets() const
 {
-    return d_ptr->centralwidget->getWidgetList();
+    return (d_ptr->centralwidget->getWidgetList());
 }
+
 
 ///
 /// \brief 添加一个2Dchart
@@ -103,42 +110,45 @@ QList<QWidget*> SAFigureWindow::getWidgets() const
 ///
 SAChart2D *SAFigureWindow::create2DPlot()
 {
-    return create2DSubPlot(0.05f,0.05f,0.9f,0.9f);
+    return (create2DSubPlot(0.05f, 0.05f, 0.9f, 0.9f));
 }
+
 
 SAChart2D *SAFigureWindow::create2DSubPlot(float xPresent, float yPresent, float wPresent, float hPresent)
 {
     try
     {
 #if 0
-        SAChart2D* chart = new SAChart2D(d_ptr->centralwidget);
-        d_ptr->centralwidget->addWidget (chart,xPresent,yPresent,wPresent,hPresent);
+        SAChart2D *chart = new SAChart2D(d_ptr->centralwidget);
+        d_ptr->centralwidget->addWidget(chart, xPresent, yPresent, wPresent, hPresent);
         d_ptr->currentPlot = chart;
         emit chartAdded(chart);
         setFocusProxy(chart);
 #else
         SAChart2D *chart = new SAChart2D;
-        SAFigureCreateSubWidgetCommand* cmd = new SAFigureCreateSubWidgetCommand(this
-                                                                   ,chart
-                                                                   ,xPresent,yPresent,wPresent,hPresent
-                                                                   ,tr("create 2D chart")
-                                                                   );
+        SAFigureCreateSubWidgetCommand *cmd = new SAFigureCreateSubWidgetCommand(this
+            , chart
+            , xPresent, yPresent, wPresent, hPresent
+            , tr("create 2D chart")
+            );
         chart->attachToFigure(this);
         appendCommand(cmd);
         d_ptr->currentPlot = chart;
         emit chartAdded(chart);
         setFocusProxy(chart);
 #endif
-        return chart;
+        return (chart);
     }
-    catch(const std::bad_alloc& b)
+    catch (const std::bad_alloc& b)
     {
         Q_UNUSED(b);
-        QMessageBox::warning (this,tr("memory out"),tr("memory out"));
-        return nullptr;
+        QMessageBox::warning(this, tr("memory out"), tr("memory out"));
+        return (nullptr);
     }
-    return nullptr;
+    return (nullptr);
 }
+
+
 ///
 /// \brief 添加窗口到fig中，此操作不是命令模式，不支持redo/undo
 /// \param w 窗体指针，如果父窗口不是fig，会改变为fig
@@ -149,12 +159,12 @@ SAChart2D *SAFigureWindow::create2DSubPlot(float xPresent, float yPresent, float
 ///
 void SAFigureWindow::_addWidget(QWidget *w, float xPresent, float yPresent, float wPresent, float hPresent)
 {
-    if(w->parentWidget() != d_ptr->centralwidget)
-    {
+    if (w->parentWidget() != d_ptr->centralwidget) {
         w->setParent(d_ptr->centralwidget);
     }
-    d_ptr->centralwidget->addWidget (w,xPresent,yPresent,wPresent,hPresent);
+    d_ptr->centralwidget->addWidget(w, xPresent, yPresent, wPresent, hPresent);
 }
+
 
 ///
 /// \brief 获取所有的图像列表
@@ -162,18 +172,19 @@ void SAFigureWindow::_addWidget(QWidget *w, float xPresent, float yPresent, floa
 ///
 QList<SAChart2D *> SAFigureWindow::get2DPlots() const
 {
-    QList<SAChart2D*> res;
+    QList<SAChart2D *> res;
     QList<QWidget *> widgets = d_ptr->centralwidget->getWidgetList();
-    for(auto i=widgets.begin();i!=widgets.end();++i)
+
+    for (auto i = widgets.begin(); i != widgets.end(); ++i)
     {
-        SAChart2D* chart = qobject_cast<SAChart2D*>(*i);
-        if(chart)
-        {
+        SAChart2D *chart = qobject_cast<SAChart2D *>(*i);
+        if (chart) {
             res.append(chart);
         }
     }
-    return res;
+    return (res);
 }
+
 
 ///
 /// \brief 当前的2d绘图指针
@@ -181,68 +192,117 @@ QList<SAChart2D *> SAFigureWindow::get2DPlots() const
 ///
 SAChart2D *SAFigureWindow::current2DPlot() const
 {
-    return d_ptr->currentPlot;
+    return (d_ptr->currentPlot);
 }
+
 
 void SAFigureWindow::clearAll()
 {
-    QList<SAChart2D*> charts = get2DPlots();
-    while(!charts.isEmpty())
+    QList<SAChart2D *> charts = get2DPlots();
+
+    while (!charts.isEmpty())
     {
-        SAChart2D* p = charts.takeLast();
-        emit chartRemoved(p);
+        SAChart2D *p = charts.takeLast();
+        emit chartWillRemove(p);
         delete p;
     }
 }
-
-
 
 
 ///
 /// \brief 设置窗体背景
 /// \param brush
 ///
-void SAFigureWindow::setBackgroundColor(const QBrush &brush)
+void SAFigureWindow::setBackgroundColor(const QBrush& brush)
 {
-    if(!autoFillBackground())
-        setAutoFillBackground(true);
-    QPalette p = palette();
-    p.setBrush(QPalette::Window,brush);
-    setPalette(p);
+    SAFigureBackgroundCommand *cmd = new SAFigureBackgroundCommand(this, brush, tr("change background"));
+
+    appendCommand(cmd);
 }
 
-void SAFigureWindow::setBackgroundColor(const QColor &clr)
+
+/**
+ * @brief 设置窗体背景
+ * @param clr
+ */
+void SAFigureWindow::setBackgroundColor(const QColor& clr)
 {
-    if(!autoFillBackground())
-        setAutoFillBackground(true);
-    QPalette p = palette();
-    p.setColor(QPalette::Window,clr);
-    setPalette(p);
+    QBrush b;
+
+    b.setStyle(Qt::SolidPattern);
+    b.setColor(clr);
+    SAFigureBackgroundCommand *cmd = new SAFigureBackgroundCommand(this, b, tr("change background"));
+
+    appendCommand(cmd);
 }
+
+
+/**
+ * @brief 获取背景颜色
+ * @return
+ */
+const QBrush& SAFigureWindow::getBackgroundColor() const
+{
+    return (d_ptr->backgroundBrush);
+}
+
+
 ///
 /// \brief 获取窗口的位置
 /// \param w
 /// \return
 ///
-QRectF SAFigureWindow::getWidgetPos(QWidget *w) const
+QRectF SAFigureWindow::getWidgetPosPercent(QWidget *w) const
 {
-    return d_ptr->centralwidget->getWidgetPos(w);
+    return (d_ptr->centralwidget->getWidgetPosPercent(w));
 }
+
+
+/**
+ * @brief 设置窗体的相对位置，不可进行redo、undo
+ * @param w
+ * @param posPercent
+ */
+void SAFigureWindow::setWidgetPosPercent(QWidget *w, const QRectF& posPercent, bool redoundo)
+{
+    if (redoundo) {
+        SAFigureSubChartResizeCommand *cmd = new SAFigureSubChartResizeCommand(this, w, posPercent, tr("resize subchart"));
+        appendCommand(cmd);
+    }else {
+        getFigureContainer()->setWidgetPosPercent(w, posPercent);
+        QRect r = SAFigureContainer::calcWidgetRectByPercent(getFigureContainer(), posPercent);
+        //刷新窗口
+        QResizeEvent e(r.size(), size());
+        QApplication::sendEvent(this, &e);
+    }
+}
+
 
 ///
 /// \brief 设置当前的2dplot
 /// \param p
 ///
-void SAFigureWindow::setCurrent2DPlot(SAChart2D *p)
+bool SAFigureWindow::setCurrent2DPlot(SAChart2D *p)
 {
-    if(!d_ptr->centralwidget->isWidgetInContainer(p))
-    {
-        return;
+    if (p == d_ptr->currentPlot) {
+        return (false);
+    }
+    if (!d_ptr->centralwidget->isWidgetInContainer(p)) {
+        return (false);
     }
     d_ptr->currentPlot = p;
-    setFocusProxy(p);
+    //setFocusProxy(p);
+    //如果在进行子窗口编辑模式，此时需要重新设置编辑
+    if (isSubWindowEditingMode()) {
+        enableSubWindowEditMode(false);
+        enableSubWindowEditMode(true);
+    }
     emit currentWidgetChanged(p);
+
+    return (true);
 }
+
+
 ///
 /// \brief 通过item查找对应的SAChart2D，如果没有返回nullptr
 /// \param item
@@ -250,55 +310,52 @@ void SAFigureWindow::setCurrent2DPlot(SAChart2D *p)
 ///
 SAChart2D *SAFigureWindow::findChartFromItem(QwtPlotItem *item)
 {
-    QList<SAChart2D*> charts = get2DPlots();
+    QList<SAChart2D *> charts = get2DPlots();
     const int chartSize = charts.size();
-    for(int i=0;i<chartSize;++i)
+
+    for (int i = 0; i < chartSize; ++i)
     {
         QwtPlotItemList items = charts[i]->itemList();
-        if(items.contains(item))
-            return charts[i];
+        if (items.contains(item)) {
+            return (charts[i]);
+        }
     }
-    return nullptr;
+    return (nullptr);
 }
+
+
 ///
 /// \brief 是否开始子窗口编辑模式
 /// \param enable
 /// \param ptr 通过此参数可以指定自定义的编辑器，若为nullptr，将使用默认的编辑器，此指针的管理权将移交SAFigureWindow
 ///
-void SAFigureWindow::enableSubWindowEditMode(bool enable,SAFigureChartRubberbandEditOverlay* ptr)
+void SAFigureWindow::enableSubWindowEditMode(bool enable, SAFigureChartRubberbandEditOverlay *ptr)
 {
-    if(enable)
-    {
-        if(nullptr == d_ptr->chartRubberbandEditor)
-        {
-            if(ptr)
-            {
+    if (enable) {
+        d_ptr->centralwidget->beginResetSubWidget();
+        if (nullptr == d_ptr->chartRubberbandEditor) {
+            if (ptr) {
                 d_ptr->chartRubberbandEditor = ptr;
                 d_ptr->chartRubberbandEditor->show();
-            }
-            else
-            {
+            }else {
                 d_ptr->chartRubberbandEditor = new SAFigureChartRubberbandEditOverlay(this);
                 d_ptr->chartRubberbandEditor->show();
             }
-        }
-        else
-        {
-            if(d_ptr->chartRubberbandEditor->isHidden())
-            {
+        }else {
+            if (d_ptr->chartRubberbandEditor->isHidden()) {
                 d_ptr->chartRubberbandEditor->show();
             }
         }
-    }
-    else
-    {
-        if(d_ptr->chartRubberbandEditor)
-        {
+    }else {
+        d_ptr->centralwidget->endResetSubWidget();
+        if (d_ptr->chartRubberbandEditor) {
             delete d_ptr->chartRubberbandEditor;
             d_ptr->chartRubberbandEditor = nullptr;
         }
     }
 }
+
+
 ///
 /// \brief 获取子窗口编辑器指针，若没有此编辑器，返回nullptr
 ///
@@ -307,31 +364,48 @@ void SAFigureWindow::enableSubWindowEditMode(bool enable,SAFigureChartRubberband
 ///
 SAFigureChartRubberbandEditOverlay *SAFigureWindow::subWindowEditModeOverlayWidget() const
 {
-    return d_ptr->chartRubberbandEditor;
+    return (d_ptr->chartRubberbandEditor);
 }
+
+
+/**
+ * @brief SAFigureWindow::isSubWindowEditingMode
+ * @return
+ */
+bool SAFigureWindow::isSubWindowEditingMode() const
+{
+    SAFigureChartRubberbandEditOverlay *b = subWindowEditModeOverlayWidget();
+
+    if (b) {
+        return (b->isVisible());
+    }
+    return (false);
+}
+
+
 ///
 /// \brief 使用支持redo/undo模式的改变子窗口大小
 /// \param p 子窗口
 /// \param rect 子窗口相对figure的大小
 ///
-void SAFigureWindow::resizeWidget(QWidget *p, const QRect &newRect, const QRect &oldRect)
+void SAFigureWindow::resizeWidget(QWidget *p, const QRect& newRect, const QRect& oldRect)
 {
-    SAFigureSubChartResizeCommand * resizeCmd;
-    if(oldRect.isNull())
-    {
-        resizeCmd = new SAFigureSubChartResizeCommand(this,p,oldRect,newRect,tr("resize"));
-    }
-    else
-    {
-        resizeCmd = new SAFigureSubChartResizeCommand(this,p,newRect,tr("resize"));
+    SAFigureSubChartResizeCommand *resizeCmd;
+
+    if (oldRect.isNull()) {
+        resizeCmd = new SAFigureSubChartResizeCommand(this, p, oldRect, newRect, tr("resize"));
+    }else {
+        resizeCmd = new SAFigureSubChartResizeCommand(this, p, newRect, tr("resize"));
     }
     appendCommand(resizeCmd);
 }
+
 
 void SAFigureWindow::appendCommand(SAFigureOptCommand *cmd)
 {
     d_ptr->redoUndoStack.push(cmd);
 }
+
 
 ///
 /// \brief 删除所有的命令
@@ -341,14 +415,16 @@ void SAFigureWindow::clearUndoCommand()
     d_ptr->redoUndoStack.clear();
 }
 
+
 ///
 /// \brief 判断命令是否是空的
 /// \return
 ///
 bool SAFigureWindow::isUndoCommandClean() const
 {
-    return d_ptr->redoUndoStack.isClean();
+    return (d_ptr->redoUndoStack.isClean());
 }
+
 
 ///
 /// \brief 返回当前光标下的widget
@@ -356,9 +432,21 @@ bool SAFigureWindow::isUndoCommandClean() const
 ///
 QWidget *SAFigureWindow::cursorWidget() const
 {
-  QPoint p = d_ptr->centralwidget->mapFromGlobal(QCursor::pos());
-  return d_ptr->centralwidget->childAt(p);
+    QPoint p = d_ptr->centralwidget->mapFromGlobal(QCursor::pos());
+
+    return (d_ptr->centralwidget->childAt(p));
 }
+
+
+/**
+ * @brief SAFigureWindow::getFigureContainer
+ * @return
+ */
+SAFigureContainer *SAFigureWindow::getFigureContainer()
+{
+    return (d_ptr->centralwidget);
+}
+
 
 ///
 /// \brief 返回在当前光标下的2D图
@@ -367,17 +455,16 @@ QWidget *SAFigureWindow::cursorWidget() const
 SAChart2D *SAFigureWindow::cursor2DChart() const
 {
     //return qobject_cast<SAChart2D *>(cursorWidget());
-    QList<SAChart2D*> charts = get2DPlots();
-    for(int i=0;i<charts.size();++i)
+    QList<SAChart2D *> charts = get2DPlots();
+
+    for (int i = 0; i < charts.size(); ++i)
     {
-        if(charts[i]->underMouse())
-        {
-            return charts[i];
+        if (charts[i]->underMouse()) {
+            return (charts[i]);
         }
     }
-    return nullptr;
+    return (nullptr);
 }
-
 
 
 //void SAFigureWindow::dragEnterEvent(QDragEnterEvent *event)
@@ -438,6 +525,8 @@ void SAFigureWindow::redo()
 {
     d_ptr->redoUndoStack.redo();
 }
+
+
 ///
 /// \brief undo
 ///
@@ -445,6 +534,8 @@ void SAFigureWindow::undo()
 {
     d_ptr->redoUndoStack.undo();
 }
+
+
 ///
 /// \brief 清空回退栈
 ///
@@ -454,86 +545,132 @@ void SAFigureWindow::clearRedoUndoStack()
 }
 
 
+/**
+ * @brief SAFigureWindow::paintEvent
+ * @param e
+ */
+void SAFigureWindow::paintEvent(QPaintEvent *e)
+{
+    QPainter p(this);
+
+    p.setBrush(d_ptr->backgroundBrush);
+    p.fillRect(0, 0, width(), height(), d_ptr->backgroundBrush);
+    SAMainWindow::paintEvent(e);
+}
+
+
+void SAFigureWindow::_setBackgroundColor(const QBrush& brush)
+{
+    d_ptr->backgroundBrush = brush;
+}
+
+
+void SAFigureWindow::_setBackgroundColor(const QColor& clr)
+{
+    d_ptr->backgroundBrush.setStyle(Qt::SolidPattern);
+    d_ptr->backgroundBrush.setColor(clr);
+}
+
+
+/**
+ * @brief 设置窗口位置，基于百分比
+ * @param w
+ * @param posPercent
+ */
+void SAFigureWindow::_setWidgetPosPercent(QWidget *w, const QRectF& posPercent)
+{
+    d_ptr->centralwidget->setWidgetPosPercent(w, posPercent);
+}
+
+
+/**
+ * @brief SAFigureWindow::_updateWidgetPos
+ * @param w
+ * @param rect
+ */
+void SAFigureWindow::_updateWidgetPos(QWidget *w, const QRect& rect)
+{
+    d_ptr->centralwidget->updateWidgetPos(w, rect);
+}
+
 
 #if 0
 void SAFigureWindow::keyPressEvent(QKeyEvent *e)
 {
     qDebug() << e->type() << e->key() << " " << e->modifiers();
-    if(Qt::ControlModifier & e->modifiers())
-    {
-        if(Qt::Key_Z == e->key())
-        {
+    if (Qt::ControlModifier& e->modifiers()) {
+        if (Qt::Key_Z == e->key()) {
             undo();
-        }
-        else if(Qt::Key_Y == e->key())
-        {
+        }else if (Qt::Key_Y == e->key()) {
             redo();
         }
     }
     QMainWindow::keyPressEvent(e);
 }
+
+
 #endif
 
 
 
-
-
-
-
-
-QDataStream &operator <<(QDataStream &out, const SAFigureWindow *p)
+QDataStream& operator <<(QDataStream& out, const SAFigureWindow *p)
 {
     const int magicStart = 0x1314abc;
-    out << magicStart
+
+    out	<< magicStart
         << p->saveGeometry()
         << p->saveState()
-           ;
-    QList<SAChart2D*> charts = p->get2DPlots();
+    ;
+    QList<SAChart2D *> charts = p->get2DPlots();
     QList<QRectF> pos;
-    for(int i=0;i<charts.size();++i)
+
+    for (int i = 0; i < charts.size(); ++i)
     {
-        pos.append(p->getWidgetPos(charts[i]));
+        pos.append(p->getWidgetPosPercent(charts[i]));
     }
     out << pos;
-    for(int i=0;i<charts.size();++i)
+    for (int i = 0; i < charts.size(); ++i)
     {
         out << charts[i];
     }
-    return out;
+    return (out);
 }
 
-QDataStream &operator >>(QDataStream &in, SAFigureWindow *p)
+
+QDataStream& operator >>(QDataStream& in, SAFigureWindow *p)
 {
     const int magicStart = 0x1314abc;
     int tmp;
+
     in >> tmp;
-    if(tmp != magicStart)
-    {
+    if (tmp != magicStart) {
         throw sa::SABadSerializeExpection();
-        return in;
+        return (in);
     }
-    QByteArray geometryData,stateData;
+    QByteArray geometryData, stateData;
+
     in >> geometryData
-            >> stateData
-            ;
+    >> stateData
+    ;
     p->restoreGeometry(geometryData);
     p->restoreState(stateData);
     QList<QRectF> pos;
+
     in >> pos;
     try
     {
-        for(int i=0;i<pos.size();++i)
+        for (int i = 0; i < pos.size(); ++i)
         {
             const QRectF& r = pos[i];
-            QScopedPointer<SAChart2D> chart(p->create2DSubPlot(r.x(),r.y(),r.width(),r.height()));
+            QScopedPointer<SAChart2D> chart(p->create2DSubPlot(r.x(), r.y(), r.width(), r.height()));
             in >> chart.data();
             chart->show();
             chart.take();
         }
     }
-    catch(const sa::SABadSerializeExpection& exp)
+    catch (const sa::SABadSerializeExpection& exp)
     {
         throw exp;
     }
-    return in;
+    return (in);
 }
